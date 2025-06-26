@@ -333,6 +333,11 @@ def generate_daily_message():
     weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
     current_weekday = weekdays[now.weekday()]
     
+    # 检查是否为工作日（周一到周五）
+    if now.weekday() >= 5:  # 周六(5)和周日(6)
+        print(f"今天是{current_weekday}，非工作日不推送消息")
+        return None  # 非工作日不推送
+    
     # 获取天气信息
     weather_info = get_weather_info()
     
@@ -359,6 +364,9 @@ if __name__ == "__main__":
     print("=== 模拟生成每日文案 ===")
     print()
     message = generate_daily_message()
-    print(message)
+    if message is None:
+        print("今天是周末，不推送消息")
+    else:
+        print(message)
     print()
     print("=== 文案生成完成 ===")

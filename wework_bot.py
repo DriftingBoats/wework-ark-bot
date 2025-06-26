@@ -360,6 +360,14 @@ class WeWorkBot:
             now = datetime.now(pytz.timezone('Asia/Shanghai'))
             date_str = now.strftime('%Y年%m月%d日')
             
+            # 获取当前星期
+            weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+            current_weekday = weekdays[now.weekday()]
+            
+            # 检查是否为工作日（周一到周五）
+            if now.weekday() >= 5:  # 周六(5)和周日(6)
+                return None  # 非工作日不推送
+            
             # 获取天气信息
             weather_info = self.get_weather_info()
             
@@ -421,6 +429,9 @@ class WeWorkBot:
         """发送每日消息"""
         logger.info("开始发送每日消息")
         message = self.generate_daily_message()
+        if message is None:
+            logger.info("今天是周末，跳过消息推送")
+            return
         success = self.send_message(message)
         if success:
             logger.info("每日消息发送成功")
@@ -492,6 +503,8 @@ def preview_daily_message():
     """预览每日消息内容"""
     try:
         message = bot.generate_daily_message()
+        if message is None:
+            return jsonify({'status': 'success', 'message': '今天是周末，不推送消息'})
         return jsonify({'status': 'success', 'message': message})
     except Exception as e:
         logger.error(f"预览每日消息异常: {str(e)}")
