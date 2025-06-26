@@ -11,10 +11,5 @@
       "src": "/(.*)",
       "dest": "/api/index.py"
     }
-  ],
-  "env": {
-    "WEBHOOK_URL": "@webhook_url",
-    "ARK_API_KEY": "@ark_api_key",
-    "ARK_BASE_URL": "@ark_base_url"
-  }
+  ]
 }
