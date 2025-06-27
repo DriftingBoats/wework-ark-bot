@@ -4,3 +4,11 @@ pycryptodome==3.19.0
 requests==2.31.0
 schedule==1.2.0
 pytz==2023.3
+
+# 测试依赖
+pytest==7.4.0
+pytest-mock==3.11.1
+
+# 开发依赖（可选）
+flake8==6.0.0
+black==23.7.0

@@ -6,12 +6,13 @@
 """
 
 import os
+import os
 import json
 import random
 import threading
 import time
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify, request
 from dotenv import load_dotenv
 import requests
 import schedule
@@ -36,6 +37,17 @@ class WeWorkBot:
         self.ark_base_url = os.getenv('ARK_BASE_URL', 'https://ark.cn-beijing.volces.com/api/v3')
         self.scheduler_started = False
         
+        # 重试配置
+        self.max_retries = 3
+        self.retry_delay = 1  # 秒
+        
+        # 缓存配置
+        self.cache = {}
+        self.cache_duration = {
+            'weather': timedelta(hours=1),  # 天气缓存1小时
+            'fortune': timedelta(hours=12)  # 老黄历缓存12小时
+        }
+        
         if not self.webhook_url:
             logger.warning("WEBHOOK_URL 未配置")
         if not self.ark_api_key:
@@ -44,6 +56,55 @@ class WeWorkBot:
         # 根据参数决定是否启动定时任务
         if start_scheduler:
             self.start_scheduler()
+    
+    def _is_cache_valid(self, cache_key):
+        """检查缓存是否有效"""
+        if cache_key not in self.cache:
+            return False
+        
+        cache_data = self.cache[cache_key]
+        cache_time = cache_data.get('timestamp')
+        cache_type = cache_data.get('type')
+        
+        if not cache_time or cache_type not in self.cache_duration:
+            return False
+        
+        return datetime.now() - cache_time < self.cache_duration[cache_type]
+    
+    def _set_cache(self, cache_key, data, cache_type):
+        """设置缓存"""
+        self.cache[cache_key] = {
+            'data': data,
+            'timestamp': datetime.now(),
+            'type': cache_type
+        }
+    
+    def _get_cache(self, cache_key):
+        """获取缓存数据"""
+        if self._is_cache_valid(cache_key):
+            return self.cache[cache_key]['data']
+        return None
+    
+    def _retry_request(self, func, *args, **kwargs):
+        """带重试机制的请求方法"""
+        last_exception = None
+        
+        for attempt in range(self.max_retries):
+            try:
+                return func(*args, **kwargs)
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                last_exception = e
+                if attempt < self.max_retries - 1:
+                    logger.warning(f"请求失败，第{attempt + 1}次重试: {e}")
+                    time.sleep(self.retry_delay * (attempt + 1))  # 指数退避
+                else:
+                    logger.error(f"请求失败，已达到最大重试次数: {e}")
+            except Exception as e:
+                # 对于非网络错误，不进行重试
+                raise e
+        
+        # 如果所有重试都失败，抛出最后一个异常
+        raise last_exception
     
     def call_ark_api(self, prompt, max_tokens=200, temperature=0.8):
         """调用 Volces Engine ARK API"""
@@ -88,12 +149,22 @@ class WeWorkBot:
         return None
     
     def get_weather_info(self):
-        """获取天气信息"""
+        """获取天气信息（带缓存）"""
+        cache_key = f"weather_{self.city}"
+        
+        # 检查缓存
+        cached_weather = self._get_cache(cache_key)
+        if cached_weather:
+            logger.info("使用缓存的天气数据")
+            return cached_weather
+        
         try:
             # 优先使用高德天气API
             if self.weather_api_key:
                 weather_data = self.get_amap_weather()
                 if weather_data:
+                    # 缓存天气数据
+                    self._set_cache(cache_key, weather_data, 'weather')
                     return weather_data
             
             # 降级到模拟数据
@@ -106,11 +177,17 @@ class WeWorkBot:
             ]
             
             weather = random.choice(weather_conditions)
-            return f"今日{self.city}天气：{weather['condition']} {weather['temp']}，{weather['desc']}"
+            weather_data = f"今日{self.city}天气：{weather['condition']} {weather['temp']}，{weather['desc']}"
+            
+            # 缓存模拟数据
+            self._set_cache(cache_key, weather_data, 'weather')
+            return weather_data
             
         except Exception as e:
             logger.error(f"获取天气信息失败: {str(e)}")
-            return "今日天气：阳光明媚，适合上班摸鱼 ☀️"
+            fallback_data = "今日天气：阳光明媚，适合上班摸鱼 ☀️"
+            self._set_cache(cache_key, fallback_data, 'weather')
+            return fallback_data
     
     def get_amap_weather(self):
         """使用高德API获取天气信息（包含当前温度、最高最低温度）"""
@@ -144,7 +221,7 @@ class WeWorkBot:
                 'extensions': 'base'  # 实况天气
             }
             
-            response = requests.get(url, params=params, timeout=10)
+            response = self._retry_request(requests.get, url, params=params, timeout=10)
             response.raise_for_status()
             
             data = response.json()
@@ -235,6 +312,185 @@ class WeWorkBot:
             logger.error(f"解析高德预报天气数据失败: {str(e)}")
             return None
     
+    def get_today_fortune(self):
+        """获取今日运势（老黄历）带缓存"""
+        today = datetime.now().strftime('%Y-%m-%d')
+        cache_key = f"fortune_{today}"
+        
+        # 检查缓存
+        cached_fortune = self._get_cache(cache_key)
+        if cached_fortune:
+            logger.info("使用缓存的运势数据")
+            return cached_fortune
+        
+        try:
+            # 天行数据老黄历API
+            api_url = "https://apis.tianapi.com/lunar/index"
+            tianapi_key = os.getenv('TIANAPI_KEY')
+            
+            # 必须有API密钥才能调用
+            if not tianapi_key:
+                logger.warning("TIANAPI_KEY未配置，使用备用运势")
+                fortune_data = self._get_fallback_fortune()
+                self._set_cache(cache_key, fortune_data, 'fortune')
+                return fortune_data
+            
+            params = {'key': tianapi_key}
+            response = self._retry_request(requests.get, api_url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # 检查API返回的错误码
+                if data.get('code') != 200:
+                    error_msg = data.get('msg', '未知错误')
+                    logger.error(f"天行API错误 (code: {data.get('code')}): {error_msg}")
+                    fortune_data = self._get_fallback_fortune()
+                    self._set_cache(cache_key, fortune_data, 'fortune')
+                    return fortune_data
+                
+                if 'result' not in data:
+                    logger.error("天行API返回数据格式错误：缺少result字段")
+                    fortune_data = self._get_fallback_fortune()
+                    self._set_cache(cache_key, fortune_data, 'fortune')
+                    return fortune_data
+                
+                result = data['result']
+                
+                # 提取关键信息并格式化
+                lunar_date = result.get('lunardate', '')
+                lunar_day = result.get('lunarday', '')
+                fitness = result.get('fitness', '无特别宜事')
+                taboo = result.get('taboo', '无特别忌事')
+                chongsha = result.get('chongsha', '')
+                pengzu = result.get('pengzu', '')
+                
+                # 格式化运势信息
+                fortune_lines = []
+                
+                # 处理农历日期格式，转换为传统格式
+                if lunar_date and lunar_day:
+                    # 将YYYY-MM-DD格式转换为传统农历格式
+                    lunar_formatted = self._format_lunar_date(lunar_date, lunar_day)
+                    fortune_lines.append(f"🌝 农历：{lunar_formatted}")
+                else:
+                    fortune_lines.append("🌝 农历：信息获取中...")
+                
+                fortune_lines.append(f"✅ 宜：{fitness}")
+                fortune_lines.append(f"❌ 忌：{taboo}")
+                
+                # 简化冲煞信息，用大白话表述
+                if chongsha:
+                    simplified_chongsha = self._simplify_chongsha(chongsha)
+                    if simplified_chongsha:
+                        fortune_lines.append(f"⚡ 今日提醒：{simplified_chongsha}")
+                
+                # 彭祖百忌太晦涩，直接省略不显示
+                
+                fortune_text = "\n".join(fortune_lines)
+                logger.info("成功获取今日运势信息")
+                
+                # 缓存运势数据
+                self._set_cache(cache_key, fortune_text, 'fortune')
+                return fortune_text
+                
+            else:
+                logger.error(f"老黄历API请求失败: HTTP {response.status_code}")
+                fortune_data = self._get_fallback_fortune()
+                self._set_cache(cache_key, fortune_data, 'fortune')
+                return fortune_data
+                
+        except requests.exceptions.Timeout:
+            logger.error("老黄历API请求超时")
+            fortune_data = self._get_fallback_fortune()
+            self._set_cache(cache_key, fortune_data, 'fortune')
+            return fortune_data
+        except requests.exceptions.RequestException as e:
+            logger.error(f"老黄历API网络请求失败: {str(e)}")
+            fortune_data = self._get_fallback_fortune()
+            self._set_cache(cache_key, fortune_data, 'fortune')
+            return fortune_data
+        except Exception as e:
+            logger.error(f"获取今日运势失败: {str(e)}")
+            fortune_data = self._get_fallback_fortune()
+            self._set_cache(cache_key, fortune_data, 'fortune')
+            return fortune_data
+    
+    def _format_lunar_date(self, lunar_date, lunar_day):
+        """格式化农历日期为传统格式"""
+        try:
+            # 如果lunar_date是YYYY-MM-DD格式，转换为干支年
+            if '-' in lunar_date:
+                year_part = lunar_date.split('-')[0]
+                year_int = int(year_part)
+                
+                # 转换为干支年
+                gan_zhi_year = self._get_ganzhi_year(year_int)
+                
+                # 提取月份信息
+                month_part = lunar_date.split('-')[1] if len(lunar_date.split('-')) > 1 else ''
+                
+                # 格式化为传统农历格式
+                if month_part:
+                    month_int = int(month_part)
+                    month_names = ['', '正月', '二月', '三月', '四月', '五月', '六月', 
+                                 '七月', '八月', '九月', '十月', '冬月', '腊月']
+                    month_name = month_names[month_int] if 1 <= month_int <= 12 else f'{month_int}月'
+                    return f"{gan_zhi_year}年{month_name}{lunar_day}"
+                else:
+                    return f"{gan_zhi_year}年{lunar_day}"
+            else:
+                # 如果已经是传统格式，直接使用
+                return f"{lunar_date} {lunar_day}"
+        except:
+            # 如果转换失败，返回原始格式
+            return f"{lunar_date} {lunar_day}"
+    
+    def _get_ganzhi_year(self, year):
+        """获取干支年"""
+        try:
+            # 天干
+            tiangan = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸']
+            # 地支
+            dizhi = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥']
+            
+            # 计算干支（以1984年甲子年为基准）
+            base_year = 1984
+            offset = (year - base_year) % 60
+            
+            tian_index = offset % 10
+            di_index = offset % 12
+            
+            return f"{tiangan[tian_index]}{dizhi[di_index]}"
+        except:
+            return str(year)
+    
+    def _simplify_chongsha(self, chongsha):
+        """简化冲煞信息为大白话"""
+        if not chongsha:
+            return None
+            
+        # 提取生肖信息
+        animals = ['鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪']
+        
+        for animal in animals:
+            if animal in chongsha:
+                return f"属{animal}的朋友今天要低调一些"
+        
+        # 如果没有找到生肖，返回通用提醒
+        return "今天做事要谨慎一些"
+    
+    def _get_fallback_fortune(self):
+        """获取备用运势信息"""
+        fallback_fortunes = [
+            "📅 农历信息获取中...\n✅ 宜：摸鱼、划水、发呆\n❌ 忌：加班、开会、写报告",
+            "📅 今日黄历\n✅ 宜：午休、喝茶、聊天\n❌ 忌：认真工作、主动汇报",
+            "📅 老黄历提醒\n✅ 宜：保持低调、适度摸鱼\n❌ 忌：表现积极、承担责任",
+            "📅 运势播报\n✅ 宜：网上冲浪、刷手机\n❌ 忌：提升自己、努力奋斗",
+            "📅 今日宜忌\n✅ 宜：装忙、假装思考\n❌ 忌：真的很忙、真的在想"
+        ]
+        return random.choice(fallback_fortunes)
+    
     def get_funny_bankruptcy_message(self):
         """生成戏谑幽默的将公司干倒闭的话语"""
         # 优先使用大模型生成
@@ -289,6 +545,51 @@ class WeWorkBot:
             "🔮 占卜预测：水晶球显示，按照目前的工作状态，公司将在农历七月十五成功转型为灵异主题乐园。门票已开始预售 👻🎢"
         ]
         return random.choice(messages)
+    
+    def generate_dynamic_greeting(self, date_str, current_weekday):
+        """使用LLM生成动态开场白"""
+        # 优先使用大模型生成
+        if self.ark_api_key:
+            # 根据不同星期和时间生成不同风格的开场白
+            greeting_styles = [
+                f"请为企业微信群机器人生成一个{current_weekday}的有趣开场白，日期是{date_str}",
+                f"请以电台主播的语气，为{current_weekday}({date_str})生成一个幽默的开场白",
+                f"请以摸鱼专家的身份，为{current_weekday}({date_str})写一个搞笑的问候语",
+                f"请模仿新闻播报员，为{current_weekday}({date_str})生成一个有趣的开场白",
+                f"请以打工人的角度，为{current_weekday}({date_str})写一个自嘲式的问候语",
+                f"请以AI助手的身份，为{current_weekday}({date_str})生成一个温馨幽默的开场白"
+            ]
+            
+            style = random.choice(greeting_styles)
+            prompt = f"""{style}。
+            
+要求：
+1. 语言风趣幽默，适合工作群聊
+2. 长度控制在2-3句话
+3. 要体现{current_weekday}的特点
+4. 适当使用emoji表情
+5. 语气要亲切友好
+6. 可以结合摸鱼、打工等职场梗
+7. 避免过于正式或严肃
+
+请直接输出开场白内容，不要解释。"""
+            
+            ai_greeting = self.call_ark_api(prompt, max_tokens=100, temperature=0.9)
+            if ai_greeting:
+                return ai_greeting
+        
+        # 降级到固定开场白
+        fallback_greetings = {
+            '周一': f"🌅 {current_weekday}好！新的一周开始了，今天是{date_str}\n💪 充满希望的一周，让我们一起加油鸭~",
+            '周二': f"⚡ {current_weekday}快乐！今天是{date_str}\n🎯 继续昨天的干劲，今天也要元气满满哦~",
+            '周三': f"🎪 {current_weekday}好呀！今天是{date_str}\n📻 一周过半啦，坚持就是胜利，摸鱼电台继续陪伴大家~",
+            '周四': f"🚀 {current_weekday}快乐！今天是{date_str}\n🌟 胜利在望的一天，明天就是快乐星期五啦~",
+            '周五': f"🎉 终于到了快乐{current_weekday}！今天是{date_str}\n🍻 周末在向我们招手，今天让我们愉快地收尾这一周~",
+            '周六': f"😴 美好的{current_weekday}！今天是{date_str}\n🛋️ 周末时光，是时候好好休息一下了~",
+            '周日': f"☀️ 悠闲的{current_weekday}！今天是{date_str}\n📚 周末的最后一天，为新的一周做好准备吧~"
+        }
+        
+        return fallback_greetings.get(current_weekday, f"🌈 {current_weekday}好！今天是{date_str}\n✨ 美好的一天开始了，让我们一起度过愉快的时光~")
     
     def get_lunch_recommendation(self, weather_info):
         """根据天气推荐午餐"""
@@ -373,14 +674,22 @@ class WeWorkBot:
             # 获取天气信息
             weather_info = self.get_weather_info()
             
+            # 获取今日运势
+            today_fortune = self.get_today_fortune()
+            
             # 获取幽默话语
             funny_message = self.get_funny_bankruptcy_message()
             
             # 获取午餐推荐
             lunch_recommendation = self.get_lunch_recommendation(weather_info)
             
+            # 生成动态开场白
+            greeting = self.generate_dynamic_greeting(date_str, current_weekday)
+            
             # 组合消息
-            message = f"""📅 {date_str} {current_weekday}
+            message = f"""📻 {greeting}
+
+{today_fortune}
 
 🌤️ {weather_info}
 
@@ -396,21 +705,47 @@ class WeWorkBot:
             logger.error(f"生成每日消息失败: {str(e)}")
             return "今日播报生成失败，但不影响大家继续摸鱼！ 🐟"
     
+    def _sanitize_message(self, message):
+        """清理和验证消息内容"""
+        if not isinstance(message, str):
+            message = str(message)
+        
+        # 移除潜在的敏感信息模式
+        import re
+        # 移除可能的API密钥、密码等敏感信息
+        sensitive_patterns = [
+            r'(?i)(api[_-]?key|password|token|secret)[\s=:]+[\w\-\.]+',
+            r'(?i)(key|pwd|pass)[\s=:]+[\w\-\.]+'
+        ]
+        
+        for pattern in sensitive_patterns:
+            message = re.sub(pattern, '[REDACTED]', message)
+        
+        # 限制消息长度
+        max_length = 4000  # 企业微信消息长度限制
+        if len(message) > max_length:
+            message = message[:max_length-10] + "...[截断]"
+        
+        return message
+    
     def send_message(self, content):
         """发送消息到企业微信群"""
         if not self.webhook_url:
             logger.error("Webhook URL 未配置")
             return False
+        
+        # 清理和验证消息
+        sanitized_content = self._sanitize_message(content)
             
         try:
             data = {
                 "msgtype": "text",
                 "text": {
-                    "content": content
+                    "content": sanitized_content
                 }
             }
             
-            response = requests.post(self.webhook_url, json=data, timeout=10)
+            response = self._retry_request(requests.post, self.webhook_url, json=data, timeout=10)
             
             if response.status_code == 200:
                 result = response.json()
@@ -506,6 +841,33 @@ def index():
         'city': current_bot.city,
         'next_schedule': '每天11:30自动推送'
     })
+
+@app.route('/health')
+def health_check():
+    """健康检查接口"""
+    bot = WeWorkBot()
+    health_status = {
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'service': 'wework-bot',
+        'config': {
+            'webhook_configured': bool(bot.webhook_url),
+            'weather_api_configured': bool(bot.weather_api_key),
+            'tianapi_configured': bool(os.getenv('TIANAPI_KEY')),
+            'ark_api_configured': bool(bot.ark_api_key)
+        },
+        'cache_stats': {
+            'cached_items': len(bot.cache),
+            'cache_keys': list(bot.cache.keys())
+        }
+    }
+    
+    # 检查关键配置
+    if not bot.webhook_url:
+        health_status['status'] = 'warning'
+        health_status['warnings'] = ['WEBHOOK_URL not configured']
+    
+    return jsonify(health_status)
 
 @app.route('/send', methods=['POST'])
 def send_message():
