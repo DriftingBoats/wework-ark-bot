@@ -2,7 +2,7 @@ name: Daily WeWork Message
 
 on:
   schedule:
-    - cron: '30 4 * * 1-5'  # 每周一到周五的 04:00 UTC (对应北京时间 12:00)
+    - cron: '0 2 * * 1-5'  # 每周一到周五的 02:00 UTC (对应北京时间 10:00)
   workflow_dispatch:  # 允许手动触发
 
 jobs:
