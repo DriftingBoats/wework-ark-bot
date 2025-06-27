@@ -22,23 +22,27 @@ jobs:
           
           echo "Target URL: $FULL_URL"
           
-          # 发送请求，跟随重定向并显示详细信息
-          response=$(curl -s -w "\n%{http_code}\n%{redirect_url}" -L -X POST "$FULL_URL" \
+          # 发送请求并获取响应
+          response=$(curl -s -w "\n%{http_code}" -L -X POST "$FULL_URL" \
             -H "Content-Type: application/json" \
             -H "User-Agent: GitHub-Actions")
           
           # 解析响应
-          http_code=$(echo "$response" | tail -n2 | head -n1)
-          redirect_url=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | head -n -2)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n -1)
           
           echo "HTTP Status: $http_code"
           echo "Response Body: $body"
-          if [ -n "$redirect_url" ]; then
-            echo "Redirect URL: $redirect_url"
+          
+          # 检查状态码是否为数字
+          if ! [[ "$http_code" =~ ^[0-9]+$ ]]; then
+            echo "❌ Invalid HTTP status code: $http_code"
+            echo "Full response: $response"
+            exit 1
           fi
           
-          if [ "$http_code" -eq 200 ]; then
+          # 检查是否成功（200-299范围）
+          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
             echo "✅ Daily message sent successfully!"
           else
             echo "❌ Failed to send daily message (Status: $http_code)"

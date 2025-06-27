@@ -249,13 +249,13 @@ class WeWorkBot:
             # 使用更丰富的提示词，让每次生成都不同
             humor_themes = [
                 f"今天是{current_weekday}，请结合这个星期特点生成一句关于上班摸鱼的幽默话语",
-                "今天是{current_weekday}，请以'据可靠消息'开头，编一个关于老板或公司的搞笑传言",
-                "今天是{current_weekday}，请模仿新闻播报的语气，播报一条关于员工摸鱼的'重大新闻'",
-                "今天是{current_weekday}，请以'温馨提示'开头，提醒大家今天的摸鱼注意事项",
-                "今天是{current_weekday}，请编一个关于工作效率和公司倒闭之间关系的搞笑统计数据",
-                "今天是{current_weekday}，请以'最新研究表明'开头，发布一个关于摸鱼的'科学发现'",
-                "今天是{current_weekday}，请模仿天气预报的语气，播报今天的'摸鱼指数'",
-                "今天是{current_weekday}，请编一个关于KPI完成情况的搞笑总结"
+                f"今天是{current_weekday}，请以'据可靠消息'开头，编一个关于老板或公司的搞笑传言",
+                f"今天是{current_weekday}，请模仿新闻播报的语气，播报一条关于员工摸鱼的'重大新闻'",
+                f"今天是{current_weekday}，请以'温馨提示'开头，提醒大家今天的摸鱼注意事项",
+                f"今天是{current_weekday}，请编一个关于工作效率和公司倒闭之间关系的搞笑统计数据",
+                f"今天是{current_weekday}，请以'最新研究表明'开头，发布一个关于摸鱼的'科学发现'",
+                f"今天是{current_weekday}，请模仿天气预报的语气，播报今天的'摸鱼指数'",
+                f"今天是{current_weekday}，请编一个关于KPI完成情况的搞笑总结"
             ]
             
             theme = random.choice(humor_themes)
