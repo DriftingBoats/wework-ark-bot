@@ -4,7 +4,7 @@ name: Daily WeWork Message
 # GitHub Actions 使用 UTC 时间，所以设置为 03:40 UTC (对应北京时间 11:40)
 on:
   schedule:
-    - cron: '0 4 * * 1-5'  # 每周一到周五的 03:40 UTC
+    - cron: '0 4 * * 1-5'  # 每周一到周五的 04:00 UTC (对应北京时间 12:00)
   workflow_dispatch:  # 允许手动触发
 
 jobs:
@@ -15,19 +15,37 @@ jobs:
       - name: Send Daily Message
         run: |
           echo "Sending daily message..."
-          response=$(curl -s -w "\n%{http_code}" -X POST "${{ secrets.VERCEL_APP_URL }}/send-daily" \
-            -H "Content-Type: application/json")
           
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | head -n -1)
+          # 确保URL格式正确，移除末尾斜杠并添加调试信息
+          CLEAN_URL=$(echo "${{ secrets.VERCEL_APP_URL }}" | sed 's:/*$::')
+          FULL_URL="${CLEAN_URL}/send-daily"
+          
+          echo "Target URL: $FULL_URL"
+          
+          # 发送请求，跟随重定向并显示详细信息
+          response=$(curl -s -w "\n%{http_code}\n%{redirect_url}" -L -X POST "$FULL_URL" \
+            -H "Content-Type: application/json" \
+            -H "User-Agent: GitHub-Actions")
+          
+          # 解析响应
+          http_code=$(echo "$response" | tail -n2 | head -n1)
+          redirect_url=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n -2)
           
           echo "HTTP Status: $http_code"
-          echo "Response: $body"
+          echo "Response Body: $body"
+          if [ -n "$redirect_url" ]; then
+            echo "Redirect URL: $redirect_url"
+          fi
           
           if [ "$http_code" -eq 200 ]; then
             echo "✅ Daily message sent successfully!"
           else
-            echo "❌ Failed to send daily message"
+            echo "❌ Failed to send daily message (Status: $http_code)"
+            echo "Please check:"
+            echo "1. VERCEL_APP_URL secret is correctly set"
+            echo "2. Vercel app is deployed and running"
+            echo "3. /send-daily endpoint exists and is accessible"
             exit 1
           fi
         env:
