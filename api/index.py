@@ -22,9 +22,30 @@ try:
         if not isinstance(app, Flask):
             raise TypeError("app is not a Flask instance")
     
-    # 添加项目信息展示页面
+except Exception as e:
+    # 记录初始化错误
+    init_error = str(e)
+    
+    # 如果导入失败，创建一个简单的Flask应用作为fallback
+    from flask import Flask, jsonify
+    app = Flask(__name__)
+    
     @app.route('/')
-    def index():
+    def error_handler():
+        return jsonify({
+            'name': '企业微信群机器人',
+            'status': 'error',
+            'message': f'应用初始化失败: {init_error}',
+            'troubleshooting': [
+                '检查环境变量配置是否正确',
+                '确认所有依赖包已正确安装',
+                '查看部署日志获取详细错误信息'
+            ]
+        }), 500
+else:
+    # 只有在成功导入wework_bot后才添加项目信息展示页面
+    @app.route('/')
+    def api_index():
         from flask import jsonify
         return jsonify({
             'name': '企业微信群机器人',
@@ -50,27 +71,6 @@ try:
             'github': 'https://github.com/your-username/wework-ark-bot',
             'docs': 'https://github.com/your-username/wework-ark-bot/blob/main/README.md'
         })
-    
-except Exception as e:
-    # 记录初始化错误
-    init_error = str(e)
-    
-    # 如果导入失败，创建一个简单的Flask应用作为fallback
-    from flask import Flask, jsonify
-    app = Flask(__name__)
-    
-    @app.route('/')
-    def error_handler():
-        return jsonify({
-            'name': '企业微信群机器人',
-            'status': 'error',
-            'message': f'应用初始化失败: {init_error}',
-            'troubleshooting': [
-                '检查环境变量配置是否正确',
-                '确认所有依赖包已正确安装',
-                '查看部署日志获取详细错误信息'
-            ]
-        }), 500
 
 # 导出应用供Vercel使用
 # 这是Vercel期望的WSGI应用入口点

@@ -824,9 +824,9 @@ except Exception as e:
     logger.error(f"机器人初始化失败: {str(e)}")
     bot = None
 
-@app.route('/', methods=['GET'])
-def index():
-    """健康检查接口"""
+@app.route('/status', methods=['GET'])
+def status():
+    """机器人状态检查接口"""
     current_bot = get_bot_instance()
     if current_bot is None:
         return jsonify({
