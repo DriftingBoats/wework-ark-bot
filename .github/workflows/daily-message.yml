@@ -1,0 +1,40 @@
+name: Daily WeWork Message
+
+# 定时触发：每工作日上午 9:00 (北京时间)
+# GitHub Actions 使用 UTC 时间，所以设置为 01:00 UTC (对应北京时间 09:00)
+on:
+  schedule:
+    - cron: '0 1 * * 1-5'  # 每周一到周五的 01:00 UTC
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  send-daily-message:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Send Daily Message
+        run: |
+          echo "Sending daily message..."
+          response=$(curl -s -w "\n%{http_code}" -X POST "${{ secrets.VERCEL_APP_URL }}/send-daily" \
+            -H "Content-Type: application/json")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n -1)
+          
+          echo "HTTP Status: $http_code"
+          echo "Response: $body"
+          
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ Daily message sent successfully!"
+          else
+            echo "❌ Failed to send daily message"
+            exit 1
+          fi
+        env:
+          VERCEL_APP_URL: ${{ secrets.VERCEL_APP_URL }}
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "⚠️ Daily message sending failed. Please check the logs."
+          # 这里可以添加其他通知方式，比如发送邮件或企业微信通知

@@ -28,20 +28,22 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 class WeWorkBot:
-    def __init__(self):
+    def __init__(self, start_scheduler=True):
         self.webhook_url = os.getenv('WEBHOOK_URL')
         self.weather_api_key = os.getenv('WEATHER_API_KEY')  # 可选的天气API密钥
         self.city = os.getenv('CITY', '上海')  # 默认城市
         self.ark_api_key = os.getenv('ARK_API_KEY')
         self.ark_base_url = os.getenv('ARK_BASE_URL', 'https://ark.cn-beijing.volces.com/api/v3')
+        self.scheduler_started = False
         
         if not self.webhook_url:
             logger.warning("WEBHOOK_URL 未配置")
         if not self.ark_api_key:
             logger.warning("ARK API Key 未配置，将使用固定文案")
         
-        # 启动定时任务
-        self.start_scheduler()
+        # 根据参数决定是否启动定时任务
+        if start_scheduler:
+            self.start_scheduler()
     
     def call_ark_api(self, prompt, max_tokens=200, temperature=0.8):
         """调用 Volces Engine ARK API"""
@@ -440,30 +442,68 @@ class WeWorkBot:
     
     def start_scheduler(self):
         """启动定时任务"""
-        # 设置每天11:30发送消息
-        schedule.every().day.at("11:30").do(self.send_daily_message)
-        
-        # 在后台线程中运行调度器
-        def run_scheduler():
-            while True:
-                schedule.run_pending()
-                time.sleep(60)  # 每分钟检查一次
-        
-        scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
-        scheduler_thread.start()
-        logger.info("定时任务已启动，每天11:30将自动发送消息")
+        if self.scheduler_started:
+            logger.info("定时任务已经启动，跳过重复启动")
+            return
+            
+        try:
+            # 设置每天11:30发送消息
+            schedule.every().day.at("11:30").do(self.send_daily_message)
+            
+            # 在后台线程中运行调度器
+            def run_scheduler():
+                while True:
+                    schedule.run_pending()
+                    time.sleep(60)  # 每分钟检查一次
+            
+            scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+            scheduler_thread.start()
+            self.scheduler_started = True
+            logger.info("定时任务已启动，每天11:30将自动发送消息")
+        except Exception as e:
+            logger.error(f"启动定时任务失败: {str(e)}")
 
 # 创建机器人实例
-bot = WeWorkBot()
+# 检测是否在Vercel环境中运行
+is_vercel = os.getenv('VERCEL') == '1' or os.getenv('VERCEL_ENV') is not None
+
+bot = None
+
+def get_bot_instance():
+    """获取机器人实例，延迟初始化"""
+    global bot
+    if bot is None:
+        # 在Vercel环境中不启动定时任务
+        start_scheduler = not is_vercel
+        bot = WeWorkBot(start_scheduler=start_scheduler)
+    return bot
+
+# 在模块导入时创建实例
+try:
+    # 在Vercel环境中不启动定时任务
+    start_scheduler = not is_vercel
+    bot = WeWorkBot(start_scheduler=start_scheduler)
+    if is_vercel:
+        logger.info("在Vercel环境中运行，定时任务已禁用")
+except Exception as e:
+    logger.error(f"机器人初始化失败: {str(e)}")
+    bot = None
 
 @app.route('/', methods=['GET'])
 def index():
     """健康检查接口"""
+    current_bot = get_bot_instance()
+    if current_bot is None:
+        return jsonify({
+            'status': 'error',
+            'message': '机器人初始化失败'
+        }), 500
+    
     return jsonify({
         'status': 'ok',
         'message': '企业微信群机器人运行中 - 定时推送版本',
-        'webhook_configured': bool(bot.webhook_url),
-        'city': bot.city,
+        'webhook_configured': bool(current_bot.webhook_url),
+        'city': current_bot.city,
         'next_schedule': '每天11:30自动推送'
     })
 
@@ -471,13 +511,17 @@ def index():
 def send_message():
     """手动发送消息接口"""
     try:
+        current_bot = get_bot_instance()
+        if current_bot is None:
+            return jsonify({'status': 'error', 'message': '机器人未初始化'}), 500
+            
         data = request.get_json()
         content = data.get('content', '')
         
         if not content:
             return jsonify({'status': 'error', 'message': '消息内容不能为空'}), 400
         
-        success = bot.send_message(content)
+        success = current_bot.send_message(content)
         
         if success:
             return jsonify({'status': 'success', 'message': '消息发送成功'})
@@ -492,7 +536,11 @@ def send_message():
 def send_daily_now():
     """立即发送每日消息（测试用）"""
     try:
-        bot.send_daily_message()
+        current_bot = get_bot_instance()
+        if current_bot is None:
+            return jsonify({'status': 'error', 'message': '机器人未初始化'}), 500
+            
+        current_bot.send_daily_message()
         return jsonify({'status': 'success', 'message': '每日消息已发送'})
     except Exception as e:
         logger.error(f"发送每日消息异常: {str(e)}")
@@ -502,7 +550,11 @@ def send_daily_now():
 def preview_daily_message():
     """预览每日消息内容"""
     try:
-        message = bot.generate_daily_message()
+        current_bot = get_bot_instance()
+        if current_bot is None:
+            return jsonify({'status': 'error', 'message': '机器人未初始化'}), 500
+            
+        message = current_bot.generate_daily_message()
         if message is None:
             return jsonify({'status': 'success', 'message': '今天是周末，不推送消息'})
         return jsonify({'status': 'success', 'message': message})
