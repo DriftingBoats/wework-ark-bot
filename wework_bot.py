@@ -783,7 +783,7 @@ class WeWorkBot:
             
         try:
             # 设置每天11:30发送消息
-            schedule.every().day.at("11:30").do(self.send_daily_message)
+            schedule.every().day.at("10:00").do(self.send_daily_message)
             
             # 在后台线程中运行调度器
             def run_scheduler():
@@ -794,7 +794,7 @@ class WeWorkBot:
             scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
             scheduler_thread.start()
             self.scheduler_started = True
-            logger.info("定时任务已启动，每天11:30将自动发送消息")
+            logger.info("定时任务已启动，每天10:00将自动发送消息")
         except Exception as e:
             logger.error(f"启动定时任务失败: {str(e)}")
 
