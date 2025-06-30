@@ -19,6 +19,8 @@
 ### 📱 核心功能
 - 🌤️ **智能天气播报**：集成高德地图API，提供实时天气信息和生活指数
 - 📅 **传统运势解读**：老黄历信息，包含宜忌、冲煞，以现代化方式呈现
+- ⭐ **星座运势查询**：支持12星座运势查询，集成天行数据API
+- 🏠 **可视化主页**：美观的Web界面，实时显示老黄历和星座运势
 - 🤖 **AI动态开场白**：基于日期和星期智能生成个性化问候语
 - 😄 **幽默破产文学**：每日精选搞笑内容，缓解工作压力
 - 🍽️ **智能午餐推荐**：根据天气和时节推荐合适的午餐选择
@@ -39,6 +41,7 @@
 ```
 wework-ark-bot/
 ├── 📄 wework_bot.py          # 🤖 机器人主程序，包含所有核心功能
+├── 📄 index.html             # 🏠 主页界面，显示老黄历和星座运势
 ├── 📁 api/
 │   └── 📄 index.py           # 🚀 Vercel部署入口，API接口定义
 ├── 📁 .github/
@@ -52,6 +55,7 @@ wework-ark-bot/
 
 ### 核心文件说明
 - **`wework_bot.py`** - 机器人主程序，包含Flask应用、定时任务、消息生成等所有功能
+- **`index.html`** - 主页界面，提供老黄历和星座运势的可视化展示
 - **`api/index.py`** - Vercel部署接口，提供Web API和项目信息展示
 - **`.github/workflows/`** - GitHub Actions工作流，支持自动化部署和定时触发
 
@@ -153,11 +157,14 @@ python wework_bot.py
 | 接口 | 方法 | 功能 | 说明 |
 |------|------|------|------|
 | `/` | GET | 项目信息 | 查看项目状态和API文档 |
+| `/index.html` | GET | 主页界面 | 显示老黄历和星座运势 |
 | `/status` | GET | 运行状态 | 机器人运行状态检查 |
 | `/health` | GET | 健康检查 | 服务状态监控 |
 | `/send` | POST | 手动发送 | 发送自定义消息到群 |
 | `/send-daily` | POST | 发送日报 | 立即发送每日消息 |
 | `/preview-daily` | GET | 预览日报 | 预览每日消息内容 |
+| `/api/fortune` | GET | 老黄历API | 获取今日老黄历信息 |
+| `/api/constellation` | GET | 星座运势API | 获取指定星座运势 |
 
 ### 详细接口说明
 
@@ -176,7 +183,13 @@ GET /
 }
 ```
 
-#### 2. 💬 手动发送消息
+#### 2. 🏠 主页界面
+```http
+GET /index.html
+```
+**用途：** 访问可视化主页，显示老黄历和星座运势
+
+#### 3. 💬 手动发送消息
 ```http
 POST /send
 Content-Type: application/json
@@ -186,17 +199,44 @@ Content-Type: application/json
 }
 ```
 
-#### 3. 📅 立即发送每日消息
+#### 4. 📅 立即发送每日消息
 ```http
 POST /send-daily
 ```
 **用途：** 测试功能，立即触发每日消息推送
 
-#### 4. 👀 预览每日消息
+#### 5. 👀 预览每日消息
 ```http
 GET /preview-daily
 ```
 **用途：** 预览今日消息内容，不发送到群
+
+#### 6. 📅 获取老黄历信息
+```http
+GET /api/fortune
+```
+**响应示例：**
+```json
+{
+  "data": "🌝 农历：乙巳年 六月初六\n✅ 宜：出行.会友.上书.见工\n❌ 忌：动土.破屋.伐木.安葬",
+  "status": "success"
+}
+```
+
+#### 7. ⭐ 获取星座运势
+```http
+GET /api/constellation?sign=leo
+```
+**参数说明：**
+- `sign`: 星座名称（英文），支持12星座：aries, taurus, gemini, cancer, leo, virgo, libra, scorpio, sagittarius, capricorn, aquarius, pisces
+
+**响应示例：**
+```json
+{
+  "data": "⭐ 狮子座今日运势\n📅 日期：2025-06-30",
+  "status": "success"
+}
+```
 
 ## ⏰ 定时任务
 

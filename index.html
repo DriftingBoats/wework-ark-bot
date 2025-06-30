@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日运势 - 老黄历与星座运势</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4a5568;
+            --secondary-color: #2d3748;
+            --accent-color: #718096;
+            --success-color: #68d391;
+            --warning-color: #f6ad55;
+            --danger-color: #fc8181;
+            --light-bg: #f7fafc;
+            --card-bg: #ffffff;
+            --text-primary: #2d3748;
+            --text-secondary: #718096;
+            --border-color: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            width: 100%;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+        }
+        
+        .header {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 24px 40px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow-lg);
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 0 0 8px 0;
+        }
+        
+        .header .current-date {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin: 8px 0 12px 0;
+            font-weight: 500;
+        }
+        
+        .header .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin: 0;
+            font-style: italic;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            max-width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .header .subtitle:hover {
+            color: var(--primary-color);
+            background: rgba(37, 99, 235, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+            width: 100%;
+        }
+        
+        @media (min-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        .grid > .card {
+            min-width: 0;
+            max-width: 100%;
+        }
+        
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--border-color);
+        }
+        
+        .card-header i {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            margin-right: 12px;
+        }
+        
+        .card-header h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+        
+        .fortune-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .fortune-item {
+            background: var(--light-bg);
+            padding: 16px;
+            border-radius: 12px;
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .fortune-item .label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        
+        .fortune-item .value {
+            font-size: 1rem;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        
+        .constellation-selector {
+            margin-bottom: 24px;
+        }
+        
+        .constellation-selector select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 1rem;
+            background: var(--card-bg);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .constellation-selector select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 240px;
+            margin: 10px 0 20px 0;
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 16px;
+            margin-top: 24px;
+        }
+        
+        .stat-card {
+            background: var(--light-bg);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+        
+        .stat-card .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 4px;
+        }
+        
+        .stat-card .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        .btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            background: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+        
+        .loading {
+            text-align: center;
+            color: var(--text-secondary);
+            font-style: italic;
+            padding: 40px;
+        }
+        
+        .error {
+            color: var(--danger-color);
+            background: #fef2f2;
+            padding: 16px;
+            border-radius: 12px;
+            border-left: 4px solid var(--danger-color);
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+            background: transparent;
+            font-size: 0.875rem;
+            opacity: 0.7;
+        }
+        
+        .constellation-info {
+            line-height: 1.6;
+        }
+        
+        .constellation-header {
+            text-align: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .constellation-header h3 {
+            margin: 0 0 5px 0;
+            color: #333;
+            font-size: 1.2em;
+        }
+        
+        .constellation-date {
+            margin: 0;
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .constellation-summary {
+            background: var(--light-bg);
+            padding: 12px;
+            border-radius: 8px;
+            margin: 12px 0;
+            border-left: 4px solid var(--primary-color);
+            font-weight: 500;
+        }
+        
+        .constellation-lucky {
+            background: #f7fafc;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 8px 0;
+            border-left: 4px solid var(--accent-color);
+        }
+        
+        .constellation-advice {
+            background: #edf2f7;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 12px 0;
+            border-left: 4px solid var(--secondary-color);
+            font-weight: 500;
+        }
+        
+        .constellation-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .constellation-other {
+            list-style: none;
+            padding: 0;
+            margin: 16px 0 0 0;
+        }
+        
+        .constellation-other li {
+            background: #f8f9fa;
+            padding: 12px 16px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+        }
+        
+        .constellation-other li:hover {
+            background: #e9ecef;
+            transform: translateX(4px);
+        }
+        
+        /* 星座选择器Tab样式 */
+        .constellation-tabs {
+            margin: 20px 0;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .tab-nav-btn {
+            flex: 0 0 auto;
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 1px 4px rgba(74, 85, 104, 0.2);
+            z-index: 10;
+            opacity: 0.7;
+        }
+        
+        .tab-nav-btn:hover {
+            background: var(--secondary-color);
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(74, 85, 104, 0.3);
+            opacity: 1;
+        }
+        
+        .tab-nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .tabs-container {
+            flex: 1;
+            display: flex;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            gap: 12px;
+            padding: 10px 0;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .tabs-container::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .tab-item {
+            flex: 0 0 auto;
+            min-width: 80px;
+            padding: 12px 8px;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        
+        .tab-item:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .tab-item.active {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .tab-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+            filter: grayscale(100%);
+            opacity: 0.7;
+        }
+        
+        .tab-item.active .tab-icon {
+            filter: grayscale(0%);
+            opacity: 1;
+        }
+        
+        .tab-name {
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        
+        .tab-date {
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+        
+        .tab-item.active .tab-date {
+            opacity: 0.9;
+        }
+        
+        .constellation-content-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .constellation-card .chart-container {
+            order: 1;
+        }
+        
+        .constellation-card #constellation-content {
+            order: 2;
+        }
+        
+        @media (max-width: 768px) {
+            .constellation-tabs {
+                margin: 15px 0;
+                gap: 8px;
+            }
+            
+            .tab-nav-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 0.8rem;
+            }
+            
+            .tabs-container {
+                gap: 8px;
+                padding: 8px 0;
+            }
+            
+            .tab-item {
+                min-width: 70px;
+                padding: 10px 6px;
+            }
+            
+            .tab-icon {
+                font-size: 1.3rem;
+                margin-bottom: 3px;
+            }
+            
+            .tab-name {
+                font-size: 0.75rem;
+                margin-bottom: 1px;
+            }
+            
+            .tab-date {
+                font-size: 0.65rem;
+            }
+            
+            .chart-container {
+                 height: 250px;
+                 padding: 20px;
+                 margin: 8px 0 15px 0;
+             }
+        }
+        
+        /* 老黄历卡片样式 */
+        .almanac-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .almanac-main-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .almanac-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+        
+        .almanac-header h1 {
+            margin: 0 0 8px 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .almanac-header .festival-info {
+            margin: 0;
+            font-size: 0.95rem;
+            opacity: 0.9;
+        }
+        
+        .yi-ji-section {
+            padding: 20px;
+            background: var(--light-bg);
+        }
+        
+        .yi-ji-text {
+            line-height: 1.8;
+            font-size: 0.95rem;
+        }
+        
+        .yi-text, .ji-text {
+            display: block;
+            margin-bottom: 12px;
+            color: var(--text-color);
+        }
+        
+        .yi-text:last-child, .ji-text:last-child {
+            margin-bottom: 0;
+        }
+        
+        .yi-item, .ji-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            background: white;
+            border-left: 4px solid var(--success-color);
+        }
+        
+        .ji-item {
+            border-left-color: var(--danger-color);
+        }
+        
+        .yi-label, .ji-label {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-right: 12px;
+            flex-shrink: 0;
+            min-width: 50px;
+        }
+        
+        .yi-content, .ji-content {
+            flex: 1;
+            line-height: 1.5;
+            color: var(--text-color);
+        }
+        
+        .yi-ji {
+            padding: 20px;
+            background: var(--light-bg);
+            border-left: 4px solid var(--primary-color);
+            margin: 0;
+        }
+        
+        .yi-ji strong {
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        
+        .almanac-details {
+            padding: 20px;
+        }
+        
+        .almanac-details summary {
+            font-weight: 600;
+            color: var(--primary-color);
+            cursor: pointer;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 16px;
+        }
+        
+        .almanac-details ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .almanac-details li {
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        
+        .almanac-details li:last-child {
+            border-bottom: none;
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+            
+            .header {
+                padding: 30px 20px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+            
+            .fortune-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-container {
+                height: 250px;
+                padding: 20px;
+            }
+            
+            .tab-nav-btn {
+                display: none;
+            }
+            
+            .constellation-tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+            }
+            
+            .constellation-tabs::-webkit-scrollbar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>今日运势</h1>
+            <p class="current-date" id="current-date"></p>
+            <p class="subtitle" id="hitokoto-text" onclick="loadHitokoto()" title="点击刷新一言">每日一言</p>
+        </div>
+        
+        <div class="grid">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-calendar-alt"></i>
+                    <h2>老黄历</h2>
+                </div>
+                <div id="fortune-content">
+                    <div class="loading">正在加载今日运势...</div>
+                </div>
+
+            </div>
+            
+            <div class="card constellation-card">
+                <div class="card-header">
+                    <i class="fas fa-star"></i>
+                    <h2>星座运势</h2>
+                </div>
+                
+                <!-- 星座选择器 - 滑动Tab -->
+                <div class="constellation-tabs">
+                    <button class="tab-nav-btn tab-nav-left" id="tab-nav-left" onclick="scrollTabs(-1)">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <div class="tabs-container" id="tabs-container">
+                        <div class="tab-item" data-sign="aries" onclick="selectConstellation('aries')">
+                            <div class="tab-icon">♈</div>
+                            <div class="tab-name">白羊座</div>
+                            <div class="tab-date">3.21-4.19</div>
+                        </div>
+                        <div class="tab-item" data-sign="taurus" onclick="selectConstellation('taurus')">
+                            <div class="tab-icon">♉</div>
+                            <div class="tab-name">金牛座</div>
+                            <div class="tab-date">4.20-5.20</div>
+                        </div>
+                        <div class="tab-item" data-sign="gemini" onclick="selectConstellation('gemini')">
+                            <div class="tab-icon">♊</div>
+                            <div class="tab-name">双子座</div>
+                            <div class="tab-date">5.21-6.21</div>
+                        </div>
+                        <div class="tab-item" data-sign="cancer" onclick="selectConstellation('cancer')">
+                            <div class="tab-icon">♋</div>
+                            <div class="tab-name">巨蟹座</div>
+                            <div class="tab-date">6.22-7.22</div>
+                        </div>
+                        <div class="tab-item" data-sign="leo" onclick="selectConstellation('leo')">
+                            <div class="tab-icon">♌</div>
+                            <div class="tab-name">狮子座</div>
+                            <div class="tab-date">7.23-8.22</div>
+                        </div>
+                        <div class="tab-item" data-sign="virgo" onclick="selectConstellation('virgo')">
+                            <div class="tab-icon">♍</div>
+                            <div class="tab-name">处女座</div>
+                            <div class="tab-date">8.23-9.22</div>
+                        </div>
+                        <div class="tab-item" data-sign="libra" onclick="selectConstellation('libra')">
+                            <div class="tab-icon">♎</div>
+                            <div class="tab-name">天秤座</div>
+                            <div class="tab-date">9.23-10.23</div>
+                        </div>
+                        <div class="tab-item" data-sign="scorpio" onclick="selectConstellation('scorpio')">
+                            <div class="tab-icon">♏</div>
+                            <div class="tab-name">天蝎座</div>
+                            <div class="tab-date">10.24-11.22</div>
+                        </div>
+                        <div class="tab-item" data-sign="sagittarius" onclick="selectConstellation('sagittarius')">
+                            <div class="tab-icon">♐</div>
+                            <div class="tab-name">射手座</div>
+                            <div class="tab-date">11.23-12.21</div>
+                        </div>
+                        <div class="tab-item" data-sign="capricorn" onclick="selectConstellation('capricorn')">
+                            <div class="tab-icon">♑</div>
+                            <div class="tab-name">摩羯座</div>
+                            <div class="tab-date">12.22-1.19</div>
+                        </div>
+                        <div class="tab-item" data-sign="aquarius" onclick="selectConstellation('aquarius')">
+                            <div class="tab-icon">♒</div>
+                            <div class="tab-name">水瓶座</div>
+                            <div class="tab-date">1.20-2.18</div>
+                        </div>
+                        <div class="tab-item" data-sign="pisces" onclick="selectConstellation('pisces')">
+                            <div class="tab-icon">♓</div>
+                            <div class="tab-name">双鱼座</div>
+                            <div class="tab-date">2.19-3.20</div>
+                        </div>
+                    </div>
+                    <button class="tab-nav-btn tab-nav-right" id="tab-nav-right" onclick="scrollTabs(1)">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                
+                <!-- 星座运势内容区域 -->
+                <div class="constellation-content-wrapper">
+                    <!-- 指数图表 -->
+                    <div class="chart-container" id="chart-container" style="display: none;">
+                        <canvas id="constellationChart"></canvas>
+                    </div>
+                    
+                    <!-- 星座运势内容 -->
+                    <div id="constellation-content">
+                        <div class="loading">请选择星座查看运势</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Created by @王明明 | Powered By AI & 天行数据 | 仅供娱乐参考</p>
+        </div>
+    </div>
+    
+    <script>
+        // 注册Chart.js插件
+        Chart.register(ChartDataLabels);
+        
+        let constellationChart = null;
+        
+        // 页面加载完成后自动加载老黄历
+        document.addEventListener('DOMContentLoaded', function() {
+            updateCurrentDate();
+            loadHitokoto();
+            loadFortune();
+            
+            // 清理过期的星座运势缓存
+            constellationCache.cleanup();
+            
+            // 初始化Tab导航按钮状态
+            updateTabNavButtons();
+            
+            // 默认选中白羊座
+            selectConstellation('aries');
+            
+            // 监听Tab容器滚动事件
+            const tabsContainer = document.getElementById('tabs-container');
+            tabsContainer.addEventListener('scroll', updateTabNavButtons);
+            
+            // 监听窗口大小变化
+            window.addEventListener('resize', updateTabNavButtons);
+        });
+        
+        // 更新当前日期显示
+        function updateCurrentDate() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            const weekday = weekdays[now.getDay()];
+            
+            const dateString = `${year}-${month}-${day} ${weekday}`;
+            document.getElementById('current-date').textContent = dateString;
+        }
+        
+        // 加载一言
+        function loadHitokoto() {
+            console.log('开始加载一言...');
+            
+            const hitokotoElement = document.getElementById('hitokoto-text');
+            const originalText = hitokotoElement.textContent;
+            
+            // 显示加载状态
+            hitokotoElement.textContent = '加载中...';
+            hitokotoElement.style.opacity = '0.6';
+            
+            fetch('https://v1.hitokoto.cn/')
+                .then(response => {
+                    console.log('一言API响应状态:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('一言API返回数据:', data);
+                    if (data && data.hitokoto) {
+                        hitokotoElement.textContent = data.hitokoto;
+                        
+                        // 如果有来源信息，可以添加到title属性中
+                        let titleText = '点击刷新一言';
+                        if (data.from) {
+                            titleText += ` | 来源：${data.from}`;
+                        }
+                        if (data.from_who) {
+                            titleText += ` | 作者：${data.from_who}`;
+                        }
+                        hitokotoElement.title = titleText;
+                    }
+                })
+                .catch(error => {
+                    console.error('加载一言失败:', error);
+                    // 恢复原始文本或显示默认文本
+                    hitokotoElement.textContent = originalText === '加载中...' ? '每日一言' : originalText;
+                    hitokotoElement.title = '点击刷新一言 | 加载失败，请重试';
+                })
+                .finally(() => {
+                    // 恢复透明度
+                    hitokotoElement.style.opacity = '1';
+                });
+        }
+        
+
+        
+        // 提取星座运势指数
+        function extractConstellationIndices(data) {
+            const indices = {
+                comprehensive: 0,
+                love: 0,
+                work: 0,
+                money: 0,
+                health: 0
+            };
+            
+            if (!data) return indices;
+            
+            // 处理结构化数据
+            if (typeof data === 'object' && data.indices) {
+                indices.comprehensive = data.indices.comprehensive || 0;
+                indices.love = data.indices.love || 0;
+                indices.work = data.indices.work || 0;
+                indices.money = data.indices.money || 0;
+                indices.health = data.indices.health || 0;
+                return indices;
+            }
+            
+            // 兼容旧格式（字符串）
+            if (typeof data === 'string') {
+                const lines = data.split('\n');
+                
+                lines.forEach(line => {
+                    if (line.includes('综合指数')) {
+                        const match = line.match(/(\d+)/g);
+                        if (match) indices.comprehensive = parseInt(match[match.length - 1]);
+                    } else if (line.includes('爱情指数')) {
+                        const match = line.match(/(\d+)/g);
+                        if (match) indices.love = parseInt(match[match.length - 1]);
+                    } else if (line.includes('工作指数')) {
+                        const match = line.match(/(\d+)/g);
+                        if (match) indices.work = parseInt(match[match.length - 1]);
+                    } else if (line.includes('财运指数')) {
+                        const match = line.match(/(\d+)/g);
+                        if (match) indices.money = parseInt(match[match.length - 1]);
+                    } else if (line.includes('健康指数')) {
+                        const match = line.match(/(\d+)/g);
+                        if (match) indices.health = parseInt(match[match.length - 1]);
+                    }
+                });
+            }
+            
+            return indices;
+        }
+        
+        // 创建星座运势图表
+        function createConstellationChart(data) {
+            const ctx = document.getElementById('constellationChart').getContext('2d');
+            
+            if (constellationChart) {
+                constellationChart.destroy();
+            }
+            
+            // 提取运势评分
+            const indices = extractConstellationIndices(data);
+            const scores = {
+                '综合': indices.comprehensive || Math.floor(Math.random() * 40) + 60,
+                '爱情': indices.love || Math.floor(Math.random() * 40) + 60,
+                '事业': indices.work || Math.floor(Math.random() * 40) + 60,
+                '财运': indices.money || Math.floor(Math.random() * 40) + 60,
+                '健康': indices.health || Math.floor(Math.random() * 40) + 60
+            };
+            
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+            
+            constellationChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(scores),
+                    datasets: [{
+                        data: Object.values(scores),
+                        backgroundColor: colors,
+                        borderColor: colors,
+                        borderWidth: 1,
+                        borderRadius: 8,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            top: 40,
+                            bottom: 10,
+                            left: 10,
+                            right: 10
+                        }
+                    },
+                    scales: {
+                        y: {
+                            display: false
+                        },
+                        x: {
+                            display: true,
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#64748b',
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        },
+                        datalabels: {
+                            anchor: 'end',
+                            align: 'top',
+                            formatter: function(value) {
+                                return value + '分';
+                            },
+                            color: '#1e293b',
+                            font: {
+                                weight: 'bold',
+                                size: 14
+                            },
+                            offset: 8
+                        }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+        
+        // 格式化老黄历数据
+        function formatFortuneData(data) {
+            // 处理结构化数据
+            if (typeof data === 'object') {
+                let html = '<div class="almanac-card">';
+                
+                // 农历信息头部
+                let lunarDate = '农历信息';
+                let festivalInfo = '';
+                
+                if (data.date_info) {
+                    if (data.date_info.lunar_formatted) {
+                        lunarDate = data.date_info.lunar_formatted;
+                    }
+                    if (data.date_info.shengxiao) {
+                        festivalInfo += `生肖${data.date_info.shengxiao}`;
+                    }
+                }
+                
+                if (data.festival_info) {
+                    if (data.festival_info.lunar_festival) {
+                        festivalInfo = data.festival_info.lunar_festival + ' ' + festivalInfo;
+                    } else if (data.festival_info.festival) {
+                        festivalInfo = data.festival_info.festival + ' ' + festivalInfo;
+                    }
+                }
+                
+                // 宜忌信息
+                let yiText = '';
+                let jiText = '';
+                
+                if (data.fortune_info) {
+                    if (data.fortune_info.fitness) {
+                        yiText = data.fortune_info.fitness.replace(/\./g, '.');
+                    }
+                    if (data.fortune_info.taboo) {
+                        jiText = data.fortune_info.taboo.replace(/\./g, '.');
+                    }
+                }
+                
+                // 合并农历日期和宜忌为一整张卡片
+                html += `
+                    <div class="almanac-main-card">
+                        <div class="almanac-header">
+                            <h1>${lunarDate}</h1>
+                            <p class="festival-info">${festivalInfo}</p>
+                        </div>
+                        ${(yiText || jiText) ? `
+                        <div class="yi-ji-section">
+                            <div class="yi-ji-text">
+                                ${yiText ? `<span class="yi-text">✅ 宜：${yiText}</span>` : ''}
+                                ${jiText ? `<span class="ji-text">❌ 忌：${jiText}</span>` : ''}
+                            </div>
+                        </div>` : ''}
+                    </div>
+                `;
+                
+                // 详细信息
+                const detailItems = [];
+                
+                // 神位信息
+                if (data.fortune_info && data.fortune_info.shenwei) {
+                    detailItems.push(`神位：${data.fortune_info.shenwei}`);
+                }
+                
+                // 冲煞信息
+                if (data.fortune_info) {
+                    let chongsha = '';
+                    if (data.fortune_info.suisha) chongsha += `岁煞：${data.fortune_info.suisha}`;
+                    if (data.fortune_info.chongsha) {
+                        if (chongsha) chongsha += ' | ';
+                        chongsha += `冲：${data.fortune_info.chongsha}`;
+                    }
+                    if (chongsha) detailItems.push(chongsha);
+                }
+                
+                // 五行信息
+                if (data.wuxing_info) {
+                    let wuxing = '';
+                    if (data.wuxing_info.wuxingjiazi) wuxing += data.wuxing_info.wuxingjiazi;
+                    if (data.wuxing_info.wuxingnayear) {
+                        if (wuxing) wuxing += '・';
+                        wuxing += data.wuxing_info.wuxingnayear + '（年）';
+                    }
+                    if (data.wuxing_info.wuxingnamonth) {
+                        if (wuxing) wuxing += '・';
+                        wuxing += data.wuxing_info.wuxingnamonth + '（月）';
+                    }
+                    if (wuxing) detailItems.push(`五行：${wuxing}`);
+                }
+                
+                // 干支信息
+                if (data.date_info) {
+                    let ganzhi = '';
+                    if (data.date_info.year_ganzhi) ganzhi += data.date_info.year_ganzhi + '年';
+                    if (data.date_info.month_ganzhi) {
+                        if (ganzhi) ganzhi += ' ';
+                        ganzhi += data.date_info.month_ganzhi + '月';
+                    }
+                    if (data.date_info.day_ganzhi) {
+                        if (ganzhi) ganzhi += ' ';
+                        ganzhi += data.date_info.day_ganzhi + '日';
+                    }
+                    if (ganzhi) detailItems.push(`干支：${ganzhi}`);
+                }
+                
+                // 胎神信息
+                if (data.fortune_info && data.fortune_info.taishen) {
+                    detailItems.push(`胎神：${data.fortune_info.taishen}`);
+                }
+                
+                // 彭祖百忌
+                if (data.fortune_info && data.fortune_info.pengzu) {
+                    detailItems.push(`彭祖百忌：${data.fortune_info.pengzu}`);
+                }
+                
+                // 星宿
+                if (data.fortune_info && data.fortune_info.xingsu) {
+                    detailItems.push(`星宿：${data.fortune_info.xingsu}`);
+                }
+                
+                // 建除
+                if (data.fortune_info && data.fortune_info.jianshen) {
+                    detailItems.push(`建除：${data.fortune_info.jianshen}`);
+                }
+                
+                if (detailItems.length > 0) {
+                    html += `
+                        <details class="almanac-details" open>
+                            <summary>详细信息</summary>
+                            <ul>
+                    `;
+                    
+                    detailItems.forEach(item => {
+                        html += `<li>${item}</li>`;
+                    });
+                    
+                    html += `
+                            </ul>
+                        </details>
+                    `;
+                }
+                
+                html += '</div>';
+                return html;
+            }
+            
+            // 兼容旧格式（字符串）
+            const lines = data.split('\n').filter(line => line.trim());
+            
+            let html = '<div class="almanac-card">';
+            
+            // 简单解析字符串格式
+            let lunarDate = '农历信息';
+            let festivalInfo = '';
+            let yiText = '';
+            let jiText = '';
+            const detailItems = [];
+            
+            lines.forEach(line => {
+                if (line.includes('：')) {
+                    const [label, value] = line.split('：', 2);
+                    if (label.includes('农历')) {
+                        lunarDate = value;
+                    } else if (label.includes('节日') || label.includes('节气')) {
+                        festivalInfo += value + ' ';
+                    } else if (label.includes('生肖')) {
+                        festivalInfo += '生肖 ' + value;
+                    } else if (label.includes('宜')) {
+                        yiText = value;
+                    } else if (label.includes('忌')) {
+                        jiText = value;
+                    } else {
+                        detailItems.push(`${label}：${value}`);
+                    }
+                }
+            });
+            
+            // 合并农历日期和宜忌为一整张卡片
+            html += `
+                <div class="almanac-main-card">
+                    <div class="almanac-header">
+                        <h1>${lunarDate}</h1>
+                        <p class="festival-info">${festivalInfo.trim()}</p>
+                    </div>
+                    ${(yiText || jiText) ? `
+                    <div class="yi-ji-section">
+                        <div class="yi-ji-text">
+                            ${yiText ? `<span class="yi-text">✅ 宜：${yiText}</span>` : ''}
+                            ${jiText ? `<span class="ji-text">❌ 忌：${jiText}</span>` : ''}
+                        </div>
+                    </div>` : ''}
+                </div>
+            `;
+            
+            if (detailItems.length > 0) {
+                html += `
+                    <details class="almanac-details" open>
+                        <summary>详细信息</summary>
+                        <ul>
+                `;
+                
+                detailItems.forEach(item => {
+                    html += `<li>${item}</li>`;
+                });
+                
+                html += `
+                        </ul>
+                    </details>
+                `;
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        // 格式化星座运势数据
+        function formatConstellationData(data) {
+            if (!data) return '<p>暂无数据</p>';
+            
+            // 处理结构化数据
+            if (typeof data === 'object' && data.sign) {
+                let html = '<div class="constellation-info">';
+                                
+                // 今日概述
+                if (data.summary) {
+                    html += `<div class="constellation-summary">${data.summary}</div>`;
+                }
+                
+                // 幸运信息 - 参考老黄历详细信息样式
+                const luckyItems = [];
+                if (data.lucky_info) {
+                    if (data.lucky_info.color) luckyItems.push(`幸运颜色：${data.lucky_info.color}`);
+                    if (data.lucky_info.number) luckyItems.push(`幸运数字：${data.lucky_info.number}`);
+                    if (data.lucky_info.time) luckyItems.push(`幸运时间：${data.lucky_info.time}`);
+                    if (data.lucky_info.noble_sign) luckyItems.push(`贵人星座：${data.lucky_info.noble_sign}`);
+                }
+                
+                if (luckyItems.length > 0) {
+                    html += `
+                        <details class="almanac-details" open>
+                            <summary>幸运信息</summary>
+                            <ul>
+                    `;
+                    luckyItems.forEach(item => {
+                        html += `<li>${item}</li>`;
+                    });
+                    html += `
+                            </ul>
+                        </details>
+                    `;
+                }
+                
+                // 今日建议
+                if (data.advice) {
+                    html += `<div class="constellation-advice">💡 今日建议：${data.advice}</div>`;
+                }
+                
+                html += '</div>';
+                return html;
+            }
+            
+            // 兼容旧格式（字符串）
+            if (typeof data === 'string') {
+                const lines = data.split('\n').filter(line => line.trim());
+                let html = '<div class="constellation-info">';
+                let summary = '';
+                const otherItems = [];
+                
+                lines.forEach(line => {
+                    if (line.includes('：')) {
+                        const [label, value] = line.split('：', 2);
+                        // 过滤掉运势指数相关信息，这些将通过图表显示
+                        if (!label.includes('指数') && !label.includes('评分') && 
+                            !label.includes('爱情运势') && !label.includes('事业运势') && 
+                            !label.includes('财运') && !label.includes('健康运势') && 
+                            !label.includes('综合运势')) {
+                            
+                            if (label.includes('概述') || label.includes('总结')) {
+                                summary = value;
+                            } else {
+                                otherItems.push(`${label}：${value}`);
+                            }
+                        }
+                    }
+                });
+                
+                // 概述
+                if (summary) {
+                    html += `<div class="constellation-summary">📝 概述：${summary}</div>`;
+                }
+                
+                // 其他信息列表
+                if (otherItems.length > 0) {
+                    html += '<ul class="constellation-other">';
+                    otherItems.forEach(item => {
+                        html += `<li>${item}</li>`;
+                    });
+                    html += '</ul>';
+                }
+                
+                html += '</div>';
+                return html;
+            }
+            
+            let html = '<div class="fortune-grid">';
+             if (data.summary) html += `<div class="fortune-item"><div class="label">今日概述</div><div class="value">${data.summary}</div></div>`;
+             // 移除运势指数相关信息，这些将通过柱状图显示
+             if (data.lucky_color) html += `<div class="fortune-item"><div class="label">幸运颜色</div><div class="value">${data.lucky_color}</div></div>`;
+             if (data.lucky_number) html += `<div class="fortune-item"><div class="label">幸运数字</div><div class="value">${data.lucky_number}</div></div>`;
+             if (data.lucky_time) html += `<div class="fortune-item"><div class="label">幸运时间</div><div class="value">${data.lucky_time}</div></div>`;
+             if (data.advice) html += `<div class="fortune-item"><div class="label">今日建议</div><div class="value">${data.advice}</div></div>`;
+            html += '</div>';
+            
+            return html || '暂无运势信息';
+        }
+        
+        // 加载今日运势
+         async function loadFortune() {
+             const fortuneContent = document.getElementById('fortune-content');
+             fortuneContent.innerHTML = '<div class="loading">正在加载老黄历信息...</div>';
+             
+             try {
+                 console.log('开始请求老黄历API...');
+                 const response = await fetch('/api/fortune');
+                 console.log('API响应状态:', response.status, response.statusText);
+                 
+                 if (!response.ok) {
+                     throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+                 }
+                 
+                 const data = await response.json();
+                 console.log('API返回数据:', data);
+                 
+                 if (data.success) {
+                     fortuneContent.innerHTML = formatFortuneData(data.data);
+                 } else {
+                     fortuneContent.innerHTML = '<div class="error">加载失败：' + (data.error || '未知错误') + '</div>';
+                 }
+            } catch (error) {
+                console.error('加载老黄历详细错误:', error);
+                fortuneContent.innerHTML = '<div class="error">网络错误，请稍后重试<br>错误详情: ' + error.message + '</div>';
+            }
+        }
+        
+        // 滚动Tab容器
+        function scrollTabs(direction) {
+            const container = document.getElementById('tabs-container');
+            const scrollAmount = 200; // 每次滚动的像素数
+            
+            if (direction === -1) {
+                container.scrollLeft -= scrollAmount;
+            } else {
+                container.scrollLeft += scrollAmount;
+            }
+            
+            // 更新按钮状态
+            updateTabNavButtons();
+        }
+        
+        // 更新Tab导航按钮状态
+        function updateTabNavButtons() {
+            const container = document.getElementById('tabs-container');
+            const leftBtn = document.getElementById('tab-nav-left');
+            const rightBtn = document.getElementById('tab-nav-right');
+            
+            // 检查是否可以向左滚动
+            leftBtn.disabled = container.scrollLeft <= 0;
+            
+            // 检查是否可以向右滚动
+            const maxScrollLeft = container.scrollWidth - container.clientWidth;
+            rightBtn.disabled = container.scrollLeft >= maxScrollLeft;
+        }
+        
+        // 选择星座Tab
+        function selectConstellation(sign) {
+            // 更新tab状态
+            document.querySelectorAll('.tab-item').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            const selectedTab = document.querySelector(`[data-sign="${sign}"]`);
+            selectedTab.classList.add('active');
+            
+            // 滚动到选中的tab
+            selectedTab.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest',
+                inline: 'center'
+            });
+            
+            // 加载星座运势
+            loadConstellation(sign);
+            
+            // 更新按钮状态
+            setTimeout(updateTabNavButtons, 300);
+        }
+        
+        // 星座运势缓存管理
+        const constellationCache = {
+            // 缓存时长：12小时
+            CACHE_DURATION: 12 * 60 * 60 * 1000,
+            
+            // 获取缓存键
+            getCacheKey(constellation) {
+                const today = new Date().toDateString();
+                return `constellation_${constellation}_${today}`;
+            },
+            
+            // 检查缓存是否有效
+            isValid(cacheKey) {
+                try {
+                    const cached = localStorage.getItem(cacheKey);
+                    if (!cached) return false;
+                    
+                    const data = JSON.parse(cached);
+                    const now = Date.now();
+                    return (now - data.timestamp) < this.CACHE_DURATION;
+                } catch (error) {
+                    console.error('缓存检查失败:', error);
+                    return false;
+                }
+            },
+            
+            // 获取缓存数据
+            get(constellation) {
+                const cacheKey = this.getCacheKey(constellation);
+                if (!this.isValid(cacheKey)) return null;
+                
+                try {
+                    const cached = localStorage.getItem(cacheKey);
+                    return JSON.parse(cached).data;
+                } catch (error) {
+                    console.error('获取缓存失败:', error);
+                    return null;
+                }
+            },
+            
+            // 设置缓存
+            set(constellation, data) {
+                const cacheKey = this.getCacheKey(constellation);
+                try {
+                    const cacheData = {
+                        data: data,
+                        timestamp: Date.now()
+                    };
+                    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+                    console.log(`星座运势已缓存: ${constellation}`);
+                } catch (error) {
+                    console.error('设置缓存失败:', error);
+                }
+            },
+            
+            // 清理过期缓存
+            cleanup() {
+                try {
+                    const keys = Object.keys(localStorage);
+                    keys.forEach(key => {
+                        if (key.startsWith('constellation_') && !this.isValid(key)) {
+                            localStorage.removeItem(key);
+                        }
+                    });
+                } catch (error) {
+                    console.error('清理缓存失败:', error);
+                }
+            }
+        };
+
+        // 加载星座运势
+         async function loadConstellation(constellation) {
+             const content = document.getElementById('constellation-content');
+             const chartContainer = document.getElementById('chart-container');
+             
+             if (!constellation) {
+                 content.innerHTML = '<div class="loading">请选择星座查看运势</div>';
+                 chartContainer.style.display = 'none';
+                 return;
+             }
+             
+             // 检查缓存
+             const cachedData = constellationCache.get(constellation);
+             if (cachedData) {
+                 console.log(`使用缓存的${constellation}星座运势数据`);
+                 chartContainer.style.display = 'block';
+                 createConstellationChart(cachedData);
+                 content.innerHTML = formatConstellationData(cachedData);
+                 return;
+             }
+             
+             content.innerHTML = '<div class="loading">正在加载星座运势...</div>';
+             chartContainer.style.display = 'none';
+             
+             try {
+                 const response = await fetch(`/api/constellation?sign=${constellation}`);
+                 const data = await response.json();
+                 
+                 if (data.success) {
+                     // 缓存数据
+                     constellationCache.set(constellation, data.data);
+                     
+                     // 先显示图表
+                     chartContainer.style.display = 'block';
+                     createConstellationChart(data.data);
+                     
+                     // 再显示内容
+                     content.innerHTML = formatConstellationData(data.data);
+                 } else {
+                     content.innerHTML = '<div class="error">加载失败：' + (data.error || '未知错误') + '</div>';
+                     chartContainer.style.display = 'none';
+                 }
+             } catch (error) {
+                 content.innerHTML = '<div class="error">网络错误，请稍后重试</div>';
+                 chartContainer.style.display = 'none';
+                 console.error('加载星座运势失败:', error);
+             }
+         }
+    </script>
+</body>
+</html>

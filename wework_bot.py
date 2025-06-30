@@ -312,6 +312,115 @@ class WeWorkBot:
             logger.error(f"解析高德预报天气数据失败: {str(e)}")
             return None
     
+    def get_today_fortune_structured(self):
+        """获取今日运势（老黄历）结构化数据"""
+        today = datetime.now().strftime('%Y-%m-%d')
+        cache_key = f"fortune_structured_{today}"
+        
+        # 检查缓存
+        cached_fortune = self._get_cache(cache_key)
+        if cached_fortune:
+            logger.info("使用缓存的结构化运势数据")
+            return cached_fortune
+        
+        try:
+            # 天行数据老黄历API
+            api_url = "https://apis.tianapi.com/lunar/index"
+            tianapi_key = os.getenv('TIANAPI_KEY')
+            
+            # 必须有API密钥才能调用
+            if not tianapi_key:
+                logger.warning("TIANAPI_KEY未配置，使用备用运势")
+                fortune_data = self._get_fallback_fortune_structured()
+                self._set_cache(cache_key, fortune_data, 'fortune')
+                return fortune_data
+            
+            params = {'key': tianapi_key}
+            response = self._retry_request(requests.get, api_url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # 检查API返回的错误码
+                if data.get('code') != 200:
+                    error_msg = data.get('msg', '未知错误')
+                    logger.error(f"天行API错误 (code: {data.get('code')}): {error_msg}")
+                    fortune_data = self._get_fallback_fortune_structured()
+                    self._set_cache(cache_key, fortune_data, 'fortune')
+                    return fortune_data
+                
+                if 'result' not in data:
+                    logger.error("天行API返回数据格式错误：缺少result字段")
+                    fortune_data = self._get_fallback_fortune_structured()
+                    self._set_cache(cache_key, fortune_data, 'fortune')
+                    return fortune_data
+                
+                result = data['result']
+                
+                # 构建结构化数据
+                fortune_data = {
+                    'date_info': {
+                        'gregorian_date': result.get('gregoriandate', ''),
+                        'lunar_date': result.get('lunardate', ''),
+                        'lunar_day': result.get('lunarday', ''),
+                        'lunar_formatted': self._format_lunar_date(result.get('lunardate', ''), result.get('lunarday', '')),
+                        'lunar_month_name': result.get('lmonthname', ''),
+                        'year_ganzhi': result.get('tiangandizhiyear', ''),
+                        'month_ganzhi': result.get('tiangandizhimonth', ''),
+                        'day_ganzhi': result.get('tiangandizhiday', ''),
+                        'shengxiao': result.get('shengxiao', '')
+                    },
+                    'festival_info': {
+                        'lunar_festival': result.get('lunar_festival', ''),
+                        'festival': result.get('festival', ''),
+                        'jieqi': result.get('jieqi', '')
+                    },
+                    'fortune_info': {
+                        'fitness': result.get('fitness', '无特别宜事'),
+                        'taboo': result.get('taboo', '无特别忌事'),
+                        'shenwei': result.get('shenwei', ''),
+                        'taishen': result.get('taishen', ''),
+                        'chongsha': result.get('chongsha', ''),
+                        'suisha': result.get('suisha', ''),
+                        'xingsu': result.get('xingsu', ''),
+                        'jianshen': result.get('jianshen', ''),
+                        'pengzu': result.get('pengzu', '')
+                    },
+                    'wuxing_info': {
+                        'wuxingjiazi': result.get('wuxingjiazi', ''),
+                        'wuxingnayear': result.get('wuxingnayear', ''),
+                        'wuxingnamonth': result.get('wuxingnamonth', '')
+                    }
+                }
+                
+                logger.info("成功获取今日结构化运势信息")
+                
+                # 缓存运势数据
+                self._set_cache(cache_key, fortune_data, 'fortune')
+                return fortune_data
+                
+            else:
+                logger.error(f"老黄历API请求失败: HTTP {response.status_code}")
+                fortune_data = self._get_fallback_fortune_structured()
+                self._set_cache(cache_key, fortune_data, 'fortune')
+                return fortune_data
+                
+        except requests.exceptions.Timeout:
+            logger.error("老黄历API请求超时")
+            fortune_data = self._get_fallback_fortune_structured()
+            self._set_cache(cache_key, fortune_data, 'fortune')
+            return fortune_data
+        except requests.exceptions.RequestException as e:
+            logger.error(f"老黄历API网络请求失败: {str(e)}")
+            fortune_data = self._get_fallback_fortune_structured()
+            self._set_cache(cache_key, fortune_data, 'fortune')
+            return fortune_data
+        except Exception as e:
+            logger.error(f"获取今日运势失败: {str(e)}")
+            fortune_data = self._get_fallback_fortune_structured()
+            self._set_cache(cache_key, fortune_data, 'fortune')
+            return fortune_data
+
     def get_today_fortune(self):
         """获取今日运势（老黄历）带缓存"""
         today = datetime.now().strftime('%Y-%m-%d')
@@ -357,15 +466,33 @@ class WeWorkBot:
                 
                 result = data['result']
                 
-                # 提取关键信息并格式化
+                # 提取所有老黄历信息
+                gregorian_date = result.get('gregoriandate', '')
                 lunar_date = result.get('lunardate', '')
                 lunar_day = result.get('lunarday', '')
+                lunar_festival = result.get('lunar_festival', '')
+                festival = result.get('festival', '')
                 fitness = result.get('fitness', '无特别宜事')
                 taboo = result.get('taboo', '无特别忌事')
+                shenwei = result.get('shenwei', '')
+                taishen = result.get('taishen', '')
                 chongsha = result.get('chongsha', '')
+                suisha = result.get('suisha', '')
+                wuxingjiazi = result.get('wuxingjiazi', '')
+                wuxingnayear = result.get('wuxingnayear', '')
+                wuxingnamonth = result.get('wuxingnamonth', '')
+                xingsu = result.get('xingsu', '')
                 pengzu = result.get('pengzu', '')
+                jianshen = result.get('jianshen', '')
+                tiangandizhiyear = result.get('tiangandizhiyear', '')
+                tiangandizhimonth = result.get('tiangandizhimonth', '')
+                tiangandizhiday = result.get('tiangandizhiday', '')
+                lmonthname = result.get('lmonthname', '')
+                shengxiao = result.get('shengxiao', '')
+                lubarmonth = result.get('lubarmonth', '')
+                jieqi = result.get('jieqi', '')
                 
-                # 格式化运势信息
+                # 格式化运势信息（只显示农历日期和宜忌）
                 fortune_lines = []
                 
                 # 处理农历日期格式，转换为传统格式
@@ -480,6 +607,45 @@ class WeWorkBot:
         # 如果没有找到生肖，返回通用提醒
         return "今天做事要谨慎一些"
     
+    def _get_fallback_fortune_structured(self):
+        """获取备用结构化运势信息"""
+        today = datetime.now().strftime('%Y-%m-%d')
+        fallback_data = {
+            'date_info': {
+                'gregorian_date': today,
+                'lunar_date': '农历信息获取中...',
+                'lunar_day': '',
+                'lunar_formatted': '农历信息获取中...',
+                'lunar_month_name': '',
+                'year_ganzhi': '',
+                'month_ganzhi': '',
+                'day_ganzhi': '',
+                'shengxiao': ''
+            },
+            'festival_info': {
+                'lunar_festival': '',
+                'festival': '',
+                'jieqi': ''
+            },
+            'fortune_info': {
+                'fitness': random.choice(['摸鱼、划水、发呆', '午休、喝茶、聊天', '保持低调、适度摸鱼', '网上冲浪、刷手机', '装忙、假装思考']),
+                'taboo': random.choice(['加班、开会、写报告', '认真工作、主动汇报', '表现积极、承担责任', '提升自己、努力奋斗', '真的很忙、真的在想']),
+                'shenwei': '',
+                'taishen': '',
+                'chongsha': '',
+                'suisha': '',
+                'xingsu': '',
+                'jianshen': '',
+                'pengzu': ''
+            },
+            'wuxing_info': {
+                'wuxingjiazi': '',
+                'wuxingnayear': '',
+                'wuxingnamonth': ''
+            }
+        }
+        return fallback_data
+
     def _get_fallback_fortune(self):
         """获取备用运势信息"""
         fallback_fortunes = [
@@ -489,6 +655,404 @@ class WeWorkBot:
             "📅 运势播报\n✅ 宜：网上冲浪、刷手机\n❌ 忌：提升自己、努力奋斗",
             "📅 今日宜忌\n✅ 宜：装忙、假装思考\n❌ 忌：真的很忙、真的在想"
         ]
+        return random.choice(fallback_fortunes)
+    
+    def get_constellation_fortune_structured(self, sign):
+        """获取星座运势结构化数据（带缓存）"""
+        today = datetime.now().strftime('%Y-%m-%d')
+        cache_key = f"constellation_structured_{sign}_{today}"
+        
+        # 检查缓存
+        cached_constellation = self._get_cache(cache_key)
+        if cached_constellation:
+            logger.info(f"使用缓存的{sign}星座结构化运势数据")
+            return cached_constellation
+        
+        try:
+            # 天行数据星座运势API
+            api_url = "https://apis.tianapi.com/star/index"
+            tianapi_key = os.getenv('TIANAPI_KEY')
+            
+            # 必须有API密钥才能调用
+            if not tianapi_key:
+                logger.warning("TIANAPI_KEY未配置，使用备用星座运势")
+                constellation_data = self._get_fallback_constellation_structured(sign)
+                self._set_cache(cache_key, constellation_data, 'fortune')
+                return constellation_data
+            
+            # 星座名称映射
+            constellation_map = {
+                'aries': '白羊座',
+                'taurus': '金牛座', 
+                'gemini': '双子座',
+                'cancer': '巨蟹座',
+                'leo': '狮子座',
+                'virgo': '处女座',
+                'libra': '天秤座',
+                'scorpio': '天蝎座',
+                'sagittarius': '射手座',
+                'capricorn': '摩羯座',
+                'aquarius': '水瓶座',
+                'pisces': '双鱼座'
+            }
+            
+            chinese_sign = constellation_map.get(sign, sign)
+            
+            params = {
+                'key': tianapi_key,
+                'astro': sign  # 使用英文星座名称
+            }
+            
+            response = self._retry_request(requests.get, api_url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # 检查API返回的错误码
+                if data.get('code') != 200:
+                    error_msg = data.get('msg', '未知错误')
+                    logger.error(f"天行星座API错误 (code: {data.get('code')}): {error_msg}")
+                    constellation_data = self._get_fallback_constellation_structured(sign)
+                    self._set_cache(cache_key, constellation_data, 'fortune')
+                    return constellation_data
+                
+                if 'result' not in data or 'list' not in data['result']:
+                    logger.error("天行星座API返回数据格式错误：缺少result.list字段")
+                    constellation_data = self._get_fallback_constellation_structured(sign)
+                    self._set_cache(cache_key, constellation_data, 'fortune')
+                    return constellation_data
+                
+                result_list = data['result']['list']
+                
+                # 解析星座运势信息
+                constellation_info = {}
+                for item in result_list:
+                    item_type = item.get('type', '')
+                    content = item.get('content', '')
+                    
+                    if item_type == '综合指数':
+                        constellation_info['comprehensive'] = content
+                    elif item_type == '爱情指数':
+                        constellation_info['love_index'] = content
+                    elif item_type == '工作指数':
+                        constellation_info['work_index'] = content
+                    elif item_type == '财运指数':
+                        constellation_info['money_index'] = content
+                    elif item_type == '健康指数':
+                        constellation_info['health_index'] = content
+                    elif item_type == '幸运颜色':
+                        constellation_info['lucky_color'] = content
+                    elif item_type == '幸运数字':
+                        constellation_info['lucky_number'] = content
+                    elif item_type == '贵人星座':
+                        constellation_info['noble_sign'] = content
+                    elif item_type == '今日概述':
+                        constellation_info['summary'] = content
+                    elif item_type == '幸运时间':
+                        constellation_info['lucky_time'] = content
+                    elif item_type == '今日建议':
+                        constellation_info['advice'] = content
+                
+                # 构建结构化数据
+                constellation_data = {
+                    'sign': chinese_sign,
+                    'date': today,
+                    'summary': constellation_info.get('summary', ''),
+                    'indices': {
+                        'comprehensive': self._extract_number(constellation_info.get('comprehensive', '0')),
+                        'love': self._extract_number(constellation_info.get('love_index', '0')),
+                        'work': self._extract_number(constellation_info.get('work_index', '0')),
+                        'money': self._extract_number(constellation_info.get('money_index', '0')),
+                        'health': self._extract_number(constellation_info.get('health_index', '0'))
+                    },
+                    'lucky_info': {
+                        'color': constellation_info.get('lucky_color', ''),
+                        'number': constellation_info.get('lucky_number', ''),
+                        'time': constellation_info.get('lucky_time', ''),
+                        'noble_sign': constellation_info.get('noble_sign', '')
+                    },
+                    'advice': constellation_info.get('advice', '')
+                }
+                
+                logger.info(f"成功获取{chinese_sign}结构化运势信息")
+                
+                # 缓存星座运势数据
+                self._set_cache(cache_key, constellation_data, 'fortune')
+                return constellation_data
+                
+            else:
+                logger.error(f"星座运势API请求失败: HTTP {response.status_code}")
+                constellation_data = self._get_fallback_constellation_structured(sign)
+                self._set_cache(cache_key, constellation_data, 'fortune')
+                return constellation_data
+                
+        except requests.exceptions.Timeout:
+            logger.error("星座运势API请求超时")
+            constellation_data = self._get_fallback_constellation_structured(sign)
+            self._set_cache(cache_key, constellation_data, 'fortune')
+            return constellation_data
+        except requests.exceptions.RequestException as e:
+            logger.error(f"星座运势API网络请求失败: {str(e)}")
+            constellation_data = self._get_fallback_constellation_structured(sign)
+            self._set_cache(cache_key, constellation_data, 'fortune')
+            return constellation_data
+        except Exception as e:
+            logger.error(f"获取星座运势失败: {str(e)}")
+            constellation_data = self._get_fallback_constellation_structured(sign)
+            self._set_cache(cache_key, constellation_data, 'fortune')
+            return constellation_data
+
+    def get_constellation_fortune(self, sign):
+        """获取星座运势（带缓存）"""
+        today = datetime.now().strftime('%Y-%m-%d')
+        cache_key = f"constellation_{sign}_{today}"
+        
+        # 检查缓存
+        cached_constellation = self._get_cache(cache_key)
+        if cached_constellation:
+            logger.info(f"使用缓存的{sign}星座运势数据")
+            return cached_constellation
+        
+        try:
+            # 天行数据星座运势API
+            api_url = "https://apis.tianapi.com/star/index"
+            tianapi_key = os.getenv('TIANAPI_KEY')
+            
+            # 必须有API密钥才能调用
+            if not tianapi_key:
+                logger.warning("TIANAPI_KEY未配置，使用备用星座运势")
+                constellation_data = self._get_fallback_constellation(sign)
+                self._set_cache(cache_key, constellation_data, 'fortune')
+                return constellation_data
+            
+            # 星座名称映射
+            constellation_map = {
+                'aries': '白羊座',
+                'taurus': '金牛座', 
+                'gemini': '双子座',
+                'cancer': '巨蟹座',
+                'leo': '狮子座',
+                'virgo': '处女座',
+                'libra': '天秤座',
+                'scorpio': '天蝎座',
+                'sagittarius': '射手座',
+                'capricorn': '摩羯座',
+                'aquarius': '水瓶座',
+                'pisces': '双鱼座'
+            }
+            
+            chinese_sign = constellation_map.get(sign, sign)
+            
+            params = {
+                'key': tianapi_key,
+                'astro': sign  # 使用英文星座名称
+            }
+            
+            response = self._retry_request(requests.get, api_url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # 检查API返回的错误码
+                if data.get('code') != 200:
+                    error_msg = data.get('msg', '未知错误')
+                    logger.error(f"天行星座API错误 (code: {data.get('code')}): {error_msg}")
+                    constellation_data = self._get_fallback_constellation(sign)
+                    self._set_cache(cache_key, constellation_data, 'fortune')
+                    return constellation_data
+                
+                if 'result' not in data or 'list' not in data['result']:
+                    logger.error("天行星座API返回数据格式错误：缺少result.list字段")
+                    constellation_data = self._get_fallback_constellation(sign)
+                    self._set_cache(cache_key, constellation_data, 'fortune')
+                    return constellation_data
+                
+                result_list = data['result']['list']
+                
+                # 解析星座运势信息
+                constellation_info = {}
+                for item in result_list:
+                    item_type = item.get('type', '')
+                    content = item.get('content', '')
+                    
+                    if item_type == '综合指数':
+                        constellation_info['comprehensive'] = content
+                    elif item_type == '爱情指数':
+                        constellation_info['love_index'] = content
+                    elif item_type == '工作指数':
+                        constellation_info['work_index'] = content
+                    elif item_type == '财运指数':
+                        constellation_info['money_index'] = content
+                    elif item_type == '健康指数':
+                        constellation_info['health_index'] = content
+                    elif item_type == '幸运颜色':
+                        constellation_info['lucky_color'] = content
+                    elif item_type == '幸运数字':
+                        constellation_info['lucky_number'] = content
+                    elif item_type == '贵人星座':
+                        constellation_info['noble_sign'] = content
+                    elif item_type == '今日概述':
+                        constellation_info['summary'] = content
+                
+                # 格式化星座运势信息
+                fortune_lines = []
+                fortune_lines.append(f"⭐ {chinese_sign}今日运势")
+                fortune_lines.append(f"📅 日期：{today}")
+                
+                if constellation_info.get('summary'):
+                    fortune_lines.append(f"📝 今日概述：{constellation_info['summary']}")
+                
+                if constellation_info.get('comprehensive'):
+                    fortune_lines.append(f"🌟 综合指数：{constellation_info['comprehensive']}")
+                
+                if constellation_info.get('love_index'):
+                    fortune_lines.append(f"💕 爱情指数：{constellation_info['love_index']}")
+                
+                if constellation_info.get('work_index'):
+                    fortune_lines.append(f"💼 工作指数：{constellation_info['work_index']}")
+                
+                if constellation_info.get('money_index'):
+                    fortune_lines.append(f"💰 财运指数：{constellation_info['money_index']}")
+                
+                if constellation_info.get('health_index'):
+                    fortune_lines.append(f"🏥 健康指数：{constellation_info['health_index']}")
+                
+                if constellation_info.get('lucky_color'):
+                    fortune_lines.append(f"🎨 幸运颜色：{constellation_info['lucky_color']}")
+                
+                if constellation_info.get('lucky_number'):
+                    fortune_lines.append(f"🔢 幸运数字：{constellation_info['lucky_number']}")
+                
+                if constellation_info.get('noble_sign'):
+                    fortune_lines.append(f"🤝 贵人星座：{constellation_info['noble_sign']}")
+                
+                constellation_text = "\n".join(fortune_lines)
+                logger.info(f"成功获取{chinese_sign}运势信息")
+                
+                # 缓存星座运势数据
+                self._set_cache(cache_key, constellation_text, 'fortune')
+                return constellation_text
+                
+            else:
+                logger.error(f"星座运势API请求失败: HTTP {response.status_code}")
+                constellation_data = self._get_fallback_constellation(sign)
+                self._set_cache(cache_key, constellation_data, 'fortune')
+                return constellation_data
+                
+        except requests.exceptions.Timeout:
+            logger.error("星座运势API请求超时")
+            constellation_data = self._get_fallback_constellation(sign)
+            self._set_cache(cache_key, constellation_data, 'fortune')
+            return constellation_data
+        except requests.exceptions.RequestException as e:
+            logger.error(f"星座运势API网络请求失败: {str(e)}")
+            constellation_data = self._get_fallback_constellation(sign)
+            self._set_cache(cache_key, constellation_data, 'fortune')
+            return constellation_data
+        except Exception as e:
+            logger.error(f"获取星座运势失败: {str(e)}")
+            constellation_data = self._get_fallback_constellation(sign)
+            self._set_cache(cache_key, constellation_data, 'fortune')
+            return constellation_data
+    
+    def _extract_number(self, text):
+        """从文本中提取数字"""
+        import re
+        if not text:
+            return 0
+        # 查找文本中的数字
+        numbers = re.findall(r'\d+', str(text))
+        if numbers:
+            return int(numbers[0])
+        return 0
+
+    def _get_fallback_constellation_structured(self, sign):
+        """获取备用星座运势结构化信息"""
+        constellation_names = {
+            'aries': '白羊座',
+            'taurus': '金牛座', 
+            'gemini': '双子座',
+            'cancer': '巨蟹座',
+            'leo': '狮子座',
+            'virgo': '处女座',
+            'libra': '天秤座',
+            'scorpio': '天蝎座',
+            'sagittarius': '射手座',
+            'capricorn': '摩羯座',
+            'aquarius': '水瓶座',
+            'pisces': '双鱼座'
+        }
+        
+        chinese_name = constellation_names.get(sign, sign)
+        today = datetime.now().strftime('%Y-%m-%d')
+        
+        # 随机生成备用数据
+        summaries = [
+            '运势平稳，适合保持低调',
+            '今天心情不错，做事比较顺利',
+            '需要多注意细节，避免出错',
+            '整体运势不错，心情愉悦'
+        ]
+        
+        colors = ['蓝色', '红色', '绿色', '黄色', '紫色', '橙色']
+        numbers = ['3', '7', '8', '5', '9', '6']
+        times = ['上午9-11点', '下午2-4点', '晚上7-9点', '中午12-1点']
+        noble_signs = ['天秤座', '双鱼座', '狮子座', '处女座', '金牛座']
+        advices = [
+            '保持积极心态，机会就在眼前',
+            '多与朋友交流，会有意外收获',
+            '注意休息，劳逸结合很重要',
+            '相信自己的直觉，做出正确选择'
+        ]
+        
+        fallback_data = {
+            'sign': chinese_name,
+            'date': today,
+            'summary': random.choice(summaries),
+            'indices': {
+                'comprehensive': random.randint(60, 90),
+                'love': random.randint(50, 95),
+                'work': random.randint(55, 88),
+                'money': random.randint(45, 85),
+                'health': random.randint(60, 92)
+            },
+            'lucky_info': {
+                'color': random.choice(colors),
+                'number': random.choice(numbers),
+                'time': random.choice(times),
+                'noble_sign': random.choice(noble_signs)
+            },
+            'advice': random.choice(advices)
+        }
+        
+        return fallback_data
+
+    def _get_fallback_constellation(self, sign):
+        """获取备用星座运势信息"""
+        constellation_names = {
+            'aries': '白羊座',
+            'taurus': '金牛座', 
+            'gemini': '双子座',
+            'cancer': '巨蟹座',
+            'leo': '狮子座',
+            'virgo': '处女座',
+            'libra': '天秤座',
+            'scorpio': '天蝎座',
+            'sagittarius': '射手座',
+            'capricorn': '摩羯座',
+            'aquarius': '水瓶座',
+            'pisces': '双鱼座'
+        }
+        
+        chinese_name = constellation_names.get(sign, sign)
+        
+        fallback_fortunes = [
+            f"⭐ {chinese_name}今日运势\n📝 今日概述：运势平稳，适合保持低调\n💕 爱情运势：桃花运一般，单身的朋友继续等待\n💼 事业运势：工作顺利，但不宜冒进\n💰 财运：财运平平，适合理财\n🎨 幸运颜色：蓝色\n🔢 幸运数字：7",
+            f"⭐ {chinese_name}今日运势\n📝 今日概述：今天心情不错，做事比较顺利\n💕 爱情运势：有机会遇到心仪的人\n💼 事业运势：工作效率高，容易获得认可\n💰 财运：有小财进账的可能\n🎨 幸运颜色：红色\n🔢 幸运数字：3",
+            f"⭐ {chinese_name}今日运势\n📝 今日概述：需要多注意细节，避免出错\n💕 爱情运势：感情稳定，适合深入交流\n💼 事业运势：工作中可能遇到小挑战\n💰 财运：支出较多，注意控制消费\n🎨 幸运颜色：绿色\n🔢 幸运数字：5",
+            f"⭐ {chinese_name}今日运势\n📝 今日概述：整体运势不错，心情愉悦\n💕 爱情运势：适合表达情感，增进感情\n💼 事业运势：有新的机会出现\n💰 财运：投资运佳，可适当尝试\n🎨 幸运颜色：黄色\n🔢 幸运数字：8"
+        ]
+        
         return random.choice(fallback_fortunes)
     
     def get_funny_bankruptcy_message(self):
@@ -683,17 +1247,17 @@ class WeWorkBot:
             # 获取午餐推荐
             lunch_recommendation = self.get_lunch_recommendation(weather_info)
             
-            # 生成动态开场白
+            # 生成动态开场白并合并幽默话语
             greeting = self.generate_dynamic_greeting(date_str, current_weekday)
+            combined_greeting = f"{greeting}\n😄 {funny_message}"
             
             # 组合消息
-            message = f"""📻 {greeting}
+            message = f"""📻 {combined_greeting}
 
+🔮 今日运势（<a href="https://daily.drifting.boats/">每日运势</a>）
 {today_fortune}
 
 🌤️ {weather_info}
-
-😄 {funny_message}
 
 🍽️ 午餐推荐：{lunch_recommendation}
 
@@ -839,7 +1403,7 @@ def status():
         'message': '企业微信群机器人运行中 - 定时推送版本',
         'webhook_configured': bool(current_bot.webhook_url),
         'city': current_bot.city,
-        'next_schedule': '每天11:30自动推送'
+        'next_schedule': '每天10:00自动推送'
     })
 
 @app.route('/health')

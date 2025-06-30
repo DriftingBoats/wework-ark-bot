@@ -43,8 +43,34 @@ except Exception as e:
             ]
         }), 500
 else:
-    # 只有在成功导入wework_bot后才添加项目信息展示页面
+    # 添加静态文件服务
+    @app.route('/index.html')
+    def serve_index():
+        from flask import send_from_directory
+        import os
+        # 获取项目根目录
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        return send_from_directory(project_root, 'index.html')
+    
+    @app.route('/home')
+    def serve_home():
+        from flask import send_from_directory
+        import os
+        # 获取项目根目录
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        return send_from_directory(project_root, 'index.html')
+    
+    # 根路径直接显示index.html页面
     @app.route('/')
+    def serve_index_root():
+        from flask import send_from_directory
+        import os
+        # 获取项目根目录
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        return send_from_directory(project_root, 'index.html')
+    
+    # API信息页面移到/api路径
+    @app.route('/api')
     def api_index():
         from flask import jsonify
         return jsonify({
@@ -60,7 +86,7 @@ else:
                 '🤖 AI生成 - 动态开场白和智能内容'
             ],
             'api_endpoints': {
-                'GET /': '项目信息和API文档',
+                'GET /api': '项目信息和API文档',
                 'POST /send': '手动发送消息',
                 'POST /send-daily': '立即发送每日消息',
                 'GET /preview-daily': '预览每日消息内容',
@@ -72,5 +98,49 @@ else:
             'docs': 'https://github.com/your-username/wework-ark-bot/blob/main/README.md'
         })
 
+    # 添加老黄历API接口
+    @app.route('/api/fortune')
+    def get_fortune():
+        from flask import jsonify
+        try:
+            fortune_data = bot.get_today_fortune_structured()
+            return jsonify({
+                'success': True,
+                'data': fortune_data
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'获取老黄历失败: {str(e)}'
+            }), 500
+    
+    # 添加星座运势API接口
+    @app.route('/api/constellation')
+    def get_constellation():
+        from flask import jsonify, request
+        try:
+            sign = request.args.get('sign')
+            if not sign:
+                return jsonify({
+                    'success': False,
+                    'error': '请提供星座参数'
+                }), 400
+            
+            constellation_data = bot.get_constellation_fortune_structured(sign)
+            return jsonify({
+                'success': True,
+                'data': constellation_data
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'获取星座运势失败: {str(e)}'
+            }), 500
+
 # 导出应用供Vercel使用
 # 这是Vercel期望的WSGI应用入口点
+
+if __name__ == '__main__':
+    # 本地开发时启动服务器
+    print("启动Flask开发服务器...")
+    app.run(host='0.0.0.0', port=5000, debug=True)
