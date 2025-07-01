@@ -206,6 +206,83 @@ show_status() {
     echo ""
 }
 
+# 设置开机自启动
+setup_autostart() {
+    log_info "设置开机自启动..."
+    
+    # 检查是否为systemd系统
+    if ! command -v systemctl &> /dev/null; then
+        log_error "此系统不支持systemd，无法设置开机自启动"
+        return 1
+    fi
+    
+    # 获取当前工作目录的绝对路径
+    WORK_DIR=$(pwd)
+    
+    # 创建systemd服务文件
+    cat > /tmp/wework-bot.service << EOF
+[Unit]
+Description=WeWork Bot Service
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=forking
+User=root
+WorkingDirectory=$WORK_DIR
+ExecStart=$WORK_DIR/deploy.sh start
+ExecStop=$WORK_DIR/deploy.sh stop
+ExecReload=$WORK_DIR/deploy.sh restart
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    # 安装服务文件
+    if sudo -n true 2>/dev/null; then
+        sudo mv /tmp/wework-bot.service /etc/systemd/system/
+        sudo systemctl daemon-reload
+        sudo systemctl enable wework-bot.service
+        log_success "开机自启动设置完成"
+        log_info "服务管理命令:"
+        echo "  启动服务: sudo systemctl start wework-bot"
+        echo "  停止服务: sudo systemctl stop wework-bot"
+        echo "  查看状态: sudo systemctl status wework-bot"
+        echo "  禁用自启: sudo systemctl disable wework-bot"
+    else
+        log_error "需要sudo权限来设置开机自启动"
+        rm -f /tmp/wework-bot.service
+        return 1
+    fi
+}
+
+# 移除开机自启动
+remove_autostart() {
+    log_info "移除开机自启动..."
+    
+    if ! command -v systemctl &> /dev/null; then
+        log_error "此系统不支持systemd"
+        return 1
+    fi
+    
+    if sudo -n true 2>/dev/null; then
+        # 停止并禁用服务
+        sudo systemctl stop wework-bot.service 2>/dev/null || true
+        sudo systemctl disable wework-bot.service 2>/dev/null || true
+        
+        # 删除服务文件
+        sudo rm -f /etc/systemd/system/wework-bot.service
+        sudo systemctl daemon-reload
+        
+        log_success "开机自启动已移除"
+    else
+        log_error "需要sudo权限来移除开机自启动"
+        return 1
+    fi
+}
+
 # 设置定时任务
 setup_cron() {
     log_info "设置定时任务..."
@@ -294,6 +371,8 @@ show_help() {
     echo "  logs          查看日志"
     echo "  status        查看状态"
     echo "  install-cron  设置定时任务"
+    echo "  autostart     设置开机自启动"
+    echo "  remove-autostart 移除开机自启动"
     echo "  cleanup       清理资源"
     echo "  help          显示帮助信息"
     echo ""
@@ -303,6 +382,7 @@ show_help() {
     echo "  $0 update        # 更新服务"
     echo "  $0 logs          # 查看日志"
     echo "  $0 install-cron  # 设置定时任务"
+    echo "  $0 autostart     # 设置开机自启动"
     echo ""
     echo "支持的 Linux 发行版:"
     echo "  - Ubuntu/Debian"
@@ -341,6 +421,12 @@ main() {
             ;;
         install-cron|cron)
             setup_cron
+            ;;
+        autostart)
+            setup_autostart
+            ;;
+        remove-autostart)
+            remove_autostart
             ;;
         update)
             check_env

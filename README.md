@@ -83,6 +83,11 @@ ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 
 # 城市配置（可选，默认上海）
 CITY=上海
+
+# 定时任务配置（可选）
+# Cron表达式格式：分 时 日 月 周
+# 默认：每周一到周五上午10点执行
+CRON_SCHEDULE=0 10 * * 1-5
 ```
 
 ### 📋 详细配置说明
@@ -95,6 +100,7 @@ CITY=上海
 | `ARK_API_KEY` | 🔶 推荐 | 火山引擎ARK API密钥，用于AI生成 | [火山引擎ARK](https://console.volcengine.com/ark) |
 | `ARK_BASE_URL` | ⚪ 可选 | ARK API基础URL | 默认火山引擎地址 |
 | `CITY` | ⚪ 可选 | 城市名称，用于天气播报 | 默认上海，支持全国城市 |
+| `CRON_SCHEDULE` | ⚪ 可选 | 定时任务执行时间 | 默认每周一到周五上午10点 |
 
 ### 🎯 配置优先级
 
@@ -164,6 +170,18 @@ crontab -e
 # 添加：0 10 * * 1-5 curl -X POST http://localhost:5000/send-daily
 ```
 
+**5. 设置开机自启动（可选）**
+```bash
+# 设置开机自启动
+./deploy.sh autostart
+
+# 移除开机自启动
+./deploy.sh remove-autostart
+
+# 查看服务状态
+sudo systemctl status wework-bot
+```
+
 #### Docker 管理命令
 
 **使用部署脚本管理（推荐）**
@@ -191,6 +209,12 @@ crontab -e
 
 # 安装定时任务
 ./deploy.sh install-cron
+
+# 设置开机自启动
+./deploy.sh autostart
+
+# 移除开机自启动
+./deploy.sh remove-autostart
 
 # 清理资源
 ./deploy.sh cleanup
@@ -526,6 +550,25 @@ sudo netstat -tlnp | grep :5000
 5. **重新安装 cron 任务**：
    ```bash
    ./deploy.sh install-cron
+   ```
+
+### 开机自启动问题
+1. **检查 systemd 服务状态**：
+   ```bash
+   sudo systemctl status wework-bot
+   ```
+2. **查看服务日志**：
+   ```bash
+   sudo journalctl -u wework-bot -f
+   ```
+3. **重新设置自启动**：
+   ```bash
+   ./deploy.sh remove-autostart
+   ./deploy.sh autostart
+   ```
+4. **手动启动服务**：
+   ```bash
+   sudo systemctl start wework-bot
    ```
 
 ### Docker 相关问题
