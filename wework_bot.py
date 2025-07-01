@@ -1,21 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-企业微信群机器人 - 定时推送版本
-每天11:30推送天气、幽默话语和午餐推荐
+企业微信群机器人
+提供天气、幽默话语和午餐推荐等功能
 """
 
 import os
 import os
 import json
 import random
-import threading
 import time
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, request
 from dotenv import load_dotenv
 import requests
-import schedule
 import pytz
 import logging
 
@@ -29,13 +27,12 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 class WeWorkBot:
-    def __init__(self, start_scheduler=True):
+    def __init__(self):
         self.webhook_url = os.getenv('WEBHOOK_URL')
         self.weather_api_key = os.getenv('WEATHER_API_KEY')  # 可选的天气API密钥
         self.city = os.getenv('CITY', '上海')  # 默认城市
         self.ark_api_key = os.getenv('ARK_API_KEY')
         self.ark_base_url = os.getenv('ARK_BASE_URL', 'https://ark.cn-beijing.volces.com/api/v3')
-        self.scheduler_started = False
         
         # 重试配置
         self.max_retries = 3
@@ -52,10 +49,6 @@ class WeWorkBot:
             logger.warning("WEBHOOK_URL 未配置")
         if not self.ark_api_key:
             logger.warning("ARK API Key 未配置，将使用固定文案")
-        
-        # 根据参数决定是否启动定时任务
-        if start_scheduler:
-            self.start_scheduler()
     
     def _is_cache_valid(self, cache_key):
         """检查缓存是否有效"""
@@ -1339,28 +1332,7 @@ class WeWorkBot:
         else:
             logger.error("每日消息发送失败")
     
-    def start_scheduler(self):
-        """启动定时任务"""
-        if self.scheduler_started:
-            logger.info("定时任务已经启动，跳过重复启动")
-            return
-            
-        try:
-            # 设置每天10:00发送消息
-            schedule.every().day.at("10:00").do(self.send_daily_message)
-            
-            # 在后台线程中运行调度器
-            def run_scheduler():
-                while True:
-                    schedule.run_pending()
-                    time.sleep(60)  # 每分钟检查一次
-            
-            scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
-            scheduler_thread.start()
-            self.scheduler_started = True
-            logger.info("定时任务已启动，每天10:00将自动发送消息")
-        except Exception as e:
-            logger.error(f"启动定时任务失败: {str(e)}")
+
 
 # 创建机器人实例
 bot = None
@@ -1369,15 +1341,34 @@ def get_bot_instance():
     """获取机器人实例，延迟初始化"""
     global bot
     if bot is None:
-        bot = WeWorkBot(start_scheduler=True)
+        bot = WeWorkBot()
     return bot
 
 # 在模块导入时创建实例
 try:
-    bot = WeWorkBot(start_scheduler=True)
+    bot = WeWorkBot()
 except Exception as e:
     logger.error(f"机器人初始化失败: {str(e)}")
     bot = None
+
+@app.route('/')
+def index():
+    """主页 - 返回运势查看界面"""
+    try:
+        with open('index.html', 'r', encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        return jsonify({
+            'status': 'ok',
+            'message': '企业微信群机器人运行中',
+            'endpoints': {
+                'status': '/status',
+                'health': '/health',
+                'send': '/send (POST)',
+                'send_daily': '/send-daily (POST)',
+                'preview_daily': '/preview-daily (GET)'
+            }
+        })
 
 @app.route('/status', methods=['GET'])
 def status():
@@ -1391,10 +1382,9 @@ def status():
     
     return jsonify({
         'status': 'ok',
-        'message': '企业微信群机器人运行中 - 定时推送版本',
+        'message': '企业微信群机器人运行中',
         'webhook_configured': bool(current_bot.webhook_url),
-        'city': current_bot.city,
-        'next_schedule': '每天10:00自动推送'
+        'city': current_bot.city
     })
 
 @app.route('/health')
@@ -1478,6 +1468,53 @@ def preview_daily_message():
     except Exception as e:
         logger.error(f"预览每日消息异常: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/fortune', methods=['GET'])
+def get_fortune():
+    """获取今日老黄历信息"""
+    try:
+        current_bot = get_bot_instance()
+        if current_bot is None:
+            return jsonify({'success': False, 'error': '机器人未初始化'}), 500
+            
+        fortune_data = current_bot.get_today_fortune_structured()
+        return jsonify({
+            'success': True,
+            'data': fortune_data
+        })
+    except Exception as e:
+        logger.error(f"获取老黄历异常: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'获取老黄历失败: {str(e)}'
+        }), 500
+
+@app.route('/api/constellation', methods=['GET'])
+def get_constellation():
+    """获取星座运势信息"""
+    try:
+        current_bot = get_bot_instance()
+        if current_bot is None:
+            return jsonify({'success': False, 'error': '机器人未初始化'}), 500
+            
+        sign = request.args.get('sign')
+        if not sign:
+            return jsonify({
+                'success': False,
+                'error': '请提供星座参数'
+            }), 400
+        
+        constellation_data = current_bot.get_constellation_fortune_structured(sign)
+        return jsonify({
+            'success': True,
+            'data': constellation_data
+        })
+    except Exception as e:
+        logger.error(f"获取星座运势异常: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'获取星座运势失败: {str(e)}'
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

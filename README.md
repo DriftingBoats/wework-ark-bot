@@ -131,7 +131,7 @@ docker --version
 ```bash
 # 克隆项目
 git clone https://github.com/DriftingBoats/wework-bot.git
-cd wework-ark-bot
+cd wework-bot
 
 # 配置环境变量
 cp .env.example .env
@@ -394,9 +394,16 @@ GET /api/constellation?sign=leo
 
 ### 修改推送时间
 
-在 `wework_bot.py` 中修改：
-```python
-schedule.every().day.at("11:30").do(self.send_daily_message)
+通过 cron 配置定时任务：
+```bash
+# 编辑 crontab
+crontab -e
+
+# 添加定时任务（每天上午10:00发送）
+0 10 * * 1-5 curl -X POST http://localhost:5000/send-daily
+
+# 或使用部署脚本安装
+./deploy.sh install-cron
 ```
 
 ### 配置AI生成功能
@@ -441,8 +448,8 @@ schedule.every().day.at("11:30").do(self.send_daily_message)
 ## 注意事项
 
 1. 确保企业微信群机器人webhook地址正确配置
-2. 定时任务在服务启动后自动开始运行
-3. 定时任务依赖系统 cron 服务，确保服务持续运行
+2. 定时任务通过系统 cron 服务实现，需要手动配置
+3. 确保服务持续运行以响应 cron 调用
 4. 当前天气信息使用模拟数据，可根据需要接入真实API
 
 ## 🧪 测试功能
@@ -515,6 +522,10 @@ sudo netstat -tlnp | grep :5000
 4. **确认服务状态**：
    ```bash
    ./deploy.sh status
+   ```
+5. **重新安装 cron 任务**：
+   ```bash
+   ./deploy.sh install-cron
    ```
 
 ### Docker 相关问题
