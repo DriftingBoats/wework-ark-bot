@@ -131,6 +131,7 @@ start_service() {
     
     # 创建日志目录
     mkdir -p logs
+    chmod 755 logs
     
     # 启动新容器
     docker run -d \
@@ -209,11 +210,14 @@ show_status() {
 setup_cron() {
     log_info "设置定时任务..."
     
+    # 从环境变量读取cron表达式，如果没有设置则使用默认值
+    CRON_SCHEDULE=${CRON_SCHEDULE:-"0 10 * * 1-5"}
+    
     # 创建定时任务脚本
     cat > /tmp/wework-cron.sh << 'EOF'
 #!/bin/bash
 # WeWork Bot 定时发送脚本
-curl -s -X POST http://localhost:5000/send-daily > /dev/null 2>&1
+curl -s -X POST http://localhost:5000/send-daily || echo "$(date): Failed to send daily message" >> /var/log/wework-bot-cron.log
 EOF
     
     chmod +x /tmp/wework-cron.sh
@@ -233,9 +237,9 @@ EOF
     fi
     
     # 添加到crontab
-    (crontab -l 2>/dev/null; echo "0 10 * * 1-5 $CRON_SCRIPT") | crontab -
+    (crontab -l 2>/dev/null; echo "$CRON_SCHEDULE $CRON_SCRIPT") | crontab -
     
-    log_success "定时任务设置完成（每周一到周五上午10点执行）"
+    log_success "定时任务设置完成（时间: $CRON_SCHEDULE）"
     log_info "可以使用 'crontab -l' 查看定时任务"
 }
 
