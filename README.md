@@ -1,6 +1,5 @@
 # 🤖 企业微信群机器人
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/wework-ark-bot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
@@ -8,7 +7,7 @@
 
 ## 🎯 项目亮点
 
-- **🚀 一键部署**：支持Vercel无服务器部署，零运维成本
+- **🚀 Docker部署**：支持Docker容器化部署，易于管理和扩展
 - **🤖 AI驱动**：集成火山引擎ARK API，动态生成个性化内容
 - **📱 企业级**：专为企业微信群设计，提升团队氛围
 - **⚡ 高性能**：智能缓存机制，API重试策略，确保稳定运行
@@ -43,11 +42,8 @@ wework-ark-bot/
 ├── 📄 wework_bot.py          # 🤖 机器人主程序，包含所有核心功能
 ├── 📄 index.html             # 🏠 主页界面，显示老黄历和星座运势
 ├── 📁 api/
-│   └── 📄 index.py           # 🚀 Vercel部署入口，API接口定义
-├── 📁 .github/
-│   └── 📁 workflows/         # ⚙️ GitHub Actions自动化工作流
+│   └── 📄 index.py           # 🚀 API接口定义
 ├── 📄 requirements.txt       # 📦 Python依赖包列表
-├── 📄 vercel.json           # 🔧 Vercel部署配置文件
 ├── 📄 .env.example          # 🔑 环境变量配置示例
 ├── 📄 .gitignore            # 🚫 Git忽略文件配置
 └── 📄 README.md             # 📖 项目文档（当前文件）
@@ -56,8 +52,7 @@ wework-ark-bot/
 ### 核心文件说明
 - **`wework_bot.py`** - 机器人主程序，包含Flask应用、定时任务、消息生成等所有功能
 - **`index.html`** - 主页界面，提供老黄历和星座运势的可视化展示
-- **`api/index.py`** - Vercel部署接口，提供Web API和项目信息展示
-- **`.github/workflows/`** - GitHub Actions工作流，支持自动化部署和定时触发
+- **`api/index.py`** - Web API接口，提供项目信息展示
 
 ## 🔧 环境变量配置
 
@@ -109,28 +104,126 @@ CITY=上海
 
 ## 🚀 部署指南
 
-### 方式一：Vercel部署（推荐）
+### 方式一：Docker 部署（推荐）
 
-#### 一键部署
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/wework-ark-bot)
+#### 环境要求
+- Linux 系统（支持 Ubuntu、CentOS、Fedora、Arch 等）
+- Docker Engine
+- Git（可选，用于代码更新）
 
-#### 手动部署
-1. **Fork项目**：点击右上角Fork按钮
-2. **导入Vercel**：
-   - 访问 [Vercel](https://vercel.com/)
-   - 点击 "New Project"
-   - 选择你Fork的仓库
-3. **配置环境变量**：
-   - 在Vercel项目设置中添加环境变量
-   - 至少配置 `WEBHOOK_URL`
-4. **部署完成**：自动部署，获得访问链接
+#### 快速部署步骤
+
+**1. 安装 Docker**
+```bash
+# 安装 Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# 添加用户到 docker 组
+sudo usermod -aG docker $USER
+newgrp docker
+
+# 验证安装
+docker --version
+```
+
+**2. 克隆项目并配置**
+```bash
+# 克隆项目
+git clone https://github.com/DriftingBoats/wework-bot.git
+cd wework-ark-bot
+
+# 配置环境变量
+cp .env.example .env
+nano .env  # 编辑配置
+```
+
+**3. 一键部署**
+```bash
+# 给脚本执行权限
+chmod +x deploy.sh
+
+# 构建镜像
+./deploy.sh build
+
+# 启动服务
+./deploy.sh start
+
+# 验证部署
+./deploy.sh status
+curl http://localhost:5000/health
+```
+
+**4. 设置定时任务**
+```bash
+# 使用脚本自动安装
+./deploy.sh install-cron
+
+# 或手动编辑 crontab
+crontab -e
+# 添加：0 10 * * 1-5 curl -X POST http://localhost:5000/api/daily
+```
+
+#### Docker 管理命令
+
+**使用部署脚本管理（推荐）**
+```bash
+# 构建镜像
+./deploy.sh build
+
+# 启动服务
+./deploy.sh start
+
+# 停止服务
+./deploy.sh stop
+
+# 重启服务
+./deploy.sh restart
+
+# 更新服务（重新构建并重启）
+./deploy.sh update
+
+# 查看状态
+./deploy.sh status
+
+# 查看日志
+./deploy.sh logs
+
+# 安装定时任务
+./deploy.sh install-cron
+
+# 清理资源
+./deploy.sh cleanup
+```
+
+**直接使用 Docker 命令**
+```bash
+# 查看容器状态
+docker ps -a | grep wework-bot
+
+# 查看实时日志
+docker logs -f wework-bot
+
+# 重启容器
+docker restart wework-bot
+
+# 停止容器
+docker stop wework-bot
+
+# 删除容器
+docker rm wework-bot
+
+# 重新构建镜像
+docker build -t wework-bot .
+```
+
 
 ### 方式二：本地开发
 
 #### 环境准备
 ```bash
 # 克隆项目
-git clone https://github.com/your-username/wework-ark-bot.git
+git clone https://github.com/DriftingBoats/wework-bot.git
 cd wework-ark-bot
 
 # 安装依赖
@@ -241,7 +334,7 @@ GET /api/constellation?sign=leo
 ## ⏰ 定时任务
 
 ### 📅 推送时间
-- **默认时间**：每个工作日 12:30（北京时间）
+- **默认时间**：每个工作日 10:00（北京时间）
 - **推送范围**：周一至周五
 - **节假日**：自动跳过（基于系统日历）
 
@@ -251,8 +344,7 @@ GET /api/constellation?sign=leo
 1. **🤖 AI动态开场白** - 基于日期和星期智能生成
 2. **🌤️ 天气信息** - 实时天气状况、温度、生活指数
 3. **📅 今日运势** - 老黄历宜忌、冲煞（现代化表达）
-4. **😄 幽默内容** - 破产文学或AI生成的搞笑内容
-5. **🍽️ 午餐推荐** - 根据天气和时节的智能推荐
+4. **🍽️ 午餐推荐** - 根据天气和时节的智能推荐
 
 ## 📱 消息示例
 
@@ -350,20 +442,374 @@ schedule.every().day.at("11:30").do(self.send_daily_message)
 
 1. 确保企业微信群机器人webhook地址正确配置
 2. 定时任务在服务启动后自动开始运行
-3. 如果部署在Vercel等无服务器平台，定时任务可能需要外部触发
+3. 定时任务依赖系统 cron 服务，确保服务持续运行
 4. 当前天气信息使用模拟数据，可根据需要接入真实API
 
-## 故障排除
+## 🧪 测试功能
+
+### API 测试命令
+```bash
+# 测试每日消息
+curl -X POST http://localhost:5000/send-daily
+
+# 测试预览消息
+curl -X GET http://localhost:5000/preview-daily
+
+# 发送自定义消息
+curl -X POST http://localhost:5000/send \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Hello from WeWork Bot!"}'
+
+# 健康检查
+curl http://localhost:5000/health
+
+# 获取老黄历
+curl http://localhost:5000/api/fortune
+
+# 获取星座运势
+curl http://localhost:5000/api/constellation?sign=leo
+```
+
+## 🛠️ 故障排除
+
+### 服务无法启动
+```bash
+# 查看详细错误信息
+./deploy.sh logs
+
+# 检查配置文件
+cat .env
+
+# 检查端口占用
+sudo netstat -tlnp | grep :5000
+```
 
 ### 消息发送失败
-- 检查WEBHOOK_URL是否正确
-- 确认企业微信群机器人是否正常
-- 查看日志输出的错误信息
+1. **检查配置**：
+   - 确认 `WEBHOOK_URL` 是否正确
+   - 验证企业微信群机器人是否正常
+2. **查看日志**：
+   ```bash
+   ./deploy.sh logs
+   ```
+3. **测试连接**：
+   ```bash
+   curl -X POST "$WEBHOOK_URL" \
+     -H "Content-Type: application/json" \
+     -d '{"msgtype": "text", "text": {"content": "测试消息"}}'
+   ```
 
 ### 定时任务不工作
-- 确认服务是否持续运行
-- 检查系统时区设置
-- 查看日志确认定时任务是否启动
+1. **检查 crontab 配置**：
+   ```bash
+   crontab -l
+   ```
+2. **查看 cron 日志**：
+   ```bash
+   sudo tail -f /var/log/cron
+   ```
+3. **手动测试 API**：
+   ```bash
+   curl -X POST http://localhost:5000/send-daily
+   ```
+4. **确认服务状态**：
+   ```bash
+   ./deploy.sh status
+   ```
+
+### Docker 相关问题
+
+**问题：容器启动失败**
+```bash
+# 查看详细错误信息
+docker logs wework-bot
+
+# 检查配置文件
+cat .env
+```
+
+**问题：端口被占用**
+```bash
+# Linux 查看端口占用
+lsof -i :5000
+
+# 修改端口映射（编辑 docker-compose.yml）
+ports:
+  - "8080:5000"  # 改为其他端口
+```
+
+**问题：权限错误**
+```bash
+# 给予执行权限
+chmod +x deploy.sh
+
+# 检查 Docker 权限
+sudo usermod -aG docker $USER
+# 重新登录或重启
+```
+
+### 重置服务
+```bash
+# 完全重置（删除所有容器和镜像）
+./deploy.sh cleanup
+docker system prune -a
+
+# 重新构建和启动
+./deploy.sh build
+./deploy.sh start
+```
+
+## ⚙️ 高级配置
+
+### 自定义消息模板
+
+编辑 `templates/` 目录下的模板文件：
+
+```bash
+# 编辑每日消息模板
+nano templates/daily_message.txt
+
+# 编辑老黄历模板
+nano templates/fortune_template.txt
+```
+
+### 环境变量详细说明
+
+```bash
+# 企业微信配置
+WEBHOOK_URL=https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY
+
+# 服务配置
+PORT=5000                    # 服务端口
+HOST=0.0.0.0                # 监听地址
+DEBUG=false                 # 调试模式
+
+# 消息配置
+DAILY_MESSAGE_TIME=09:00    # 每日消息发送时间
+WEEKEND_ENABLED=false       # 是否在周末发送
+
+# API 配置
+API_RATE_LIMIT=100          # API 请求限制
+CACHE_TIMEOUT=3600          # 缓存超时时间
+
+# 日志配置
+LOG_LEVEL=INFO              # 日志级别
+LOG_FILE=/app/logs/app.log  # 日志文件路径
+```
+
+### Docker Compose 高级配置
+
+创建 `docker-compose.override.yml` 进行自定义配置：
+
+```yaml
+version: '3.8'
+services:
+  wework-bot:
+    environment:
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./custom_templates:/app/templates
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+```
+
+## 📊 监控和维护
+
+### 日志管理
+
+```bash
+# 查看实时日志
+./deploy.sh logs
+
+# 查看最近 100 行日志
+docker logs --tail 100 wework-bot
+
+# 查看特定时间段的日志
+docker logs --since="2024-01-01T00:00:00" --until="2024-01-02T00:00:00" wework-bot
+
+# 日志轮转（防止日志文件过大）
+sudo logrotate -f /etc/logrotate.d/docker-container
+```
+
+### 性能监控
+
+```bash
+# 查看容器资源使用情况
+docker stats wework-bot
+
+# 查看系统资源
+top
+htop
+df -h
+```
+
+### 备份和恢复
+
+```bash
+# 备份配置文件
+cp .env .env.backup.$(date +%Y%m%d)
+
+# 备份自定义模板
+tar -czf templates_backup_$(date +%Y%m%d).tar.gz templates/
+
+# 导出 Docker 镜像
+docker save wework-bot:latest | gzip > wework-bot-backup.tar.gz
+
+# 恢复镜像
+docker load < wework-bot-backup.tar.gz
+```
+
+## 🔒 安全建议
+
+### 网络安全
+
+1. **防火墙配置**：
+   ```bash
+   # 只允许本地访问
+   sudo ufw allow from 127.0.0.1 to any port 5000
+   
+   # 或者允许特定 IP 段
+   sudo ufw allow from 192.168.1.0/24 to any port 5000
+   ```
+
+2. **反向代理**（推荐使用 Nginx）：
+   ```nginx
+   server {
+       listen 80;
+       server_name your-domain.com;
+       
+       location / {
+           proxy_pass http://127.0.0.1:5000;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+       }
+   }
+   ```
+
+### 数据安全
+
+1. **环境变量保护**：
+   ```bash
+   # 设置文件权限
+   chmod 600 .env
+   
+   # 避免将 .env 提交到版本控制
+   echo ".env" >> .gitignore
+   ```
+
+2. **定期更新**：
+   ```bash
+   # 更新系统包
+   sudo apt update && sudo apt upgrade
+   
+   # 更新 Docker
+   sudo apt update docker-ce
+   
+   # 更新项目代码
+   git pull origin main
+   ./deploy.sh update
+   ```
+
+## 🚀 性能优化
+
+### 容器优化
+
+```yaml
+# docker-compose.yml 性能优化
+version: '3.8'
+services:
+  wework-bot:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+```
+
+### 系统优化
+
+```bash
+# 清理 Docker 缓存
+docker system prune -f
+
+# 清理未使用的镜像
+docker image prune -a
+
+# 设置 Docker 日志轮转
+sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  }
+}
+EOF
+
+sudo systemctl restart docker
+```
+
+## 🏭 生产环境部署
+
+### 推荐配置
+
+1. **服务器要求**：
+   - CPU: 1 核心以上
+   - 内存: 1GB 以上
+   - 存储: 10GB 以上
+   - 网络: 稳定的互联网连接
+
+2. **系统配置**：
+   ```bash
+   # 设置时区
+   sudo timedatectl set-timezone Asia/Shanghai
+   
+   # 配置 NTP 同步
+   sudo systemctl enable systemd-timesyncd
+   sudo systemctl start systemd-timesyncd
+   
+   # 设置系统限制
+   echo "* soft nofile 65536" | sudo tee -a /etc/security/limits.conf
+   echo "* hard nofile 65536" | sudo tee -a /etc/security/limits.conf
+   ```
+
+3. **自动启动配置**：
+   ```bash
+   # 创建 systemd 服务
+   sudo tee /etc/systemd/system/wework-bot.service > /dev/null <<EOF
+   [Unit]
+   Description=WeWork Bot Service
+   Requires=docker.service
+   After=docker.service
+   
+   [Service]
+   Type=oneshot
+   RemainAfterExit=yes
+   WorkingDirectory=/path/to/wework-ark-bot
+   ExecStart=/path/to/wework-ark-bot/deploy.sh start
+   ExecStop=/path/to/wework-ark-bot/deploy.sh stop
+   
+   [Install]
+   WantedBy=multi-user.target
+   EOF
+   
+   # 启用服务
+   sudo systemctl enable wework-bot.service
+   sudo systemctl start wework-bot.service
+   ```
 
 ## 📈 版本历史
 
@@ -415,15 +861,15 @@ schedule.every().day.at("11:30").do(self.send_daily_message)
 - [高德地图](https://lbs.amap.com/) - 天气数据服务
 - [天行数据](https://www.tianapi.com/) - 老黄历数据服务
 - [火山引擎ARK](https://console.volcengine.com/ark) - AI内容生成服务
-- [Vercel](https://vercel.com/) - 免费部署平台
+
 
 ## 📞 联系方式
 
 如有问题或建议，欢迎通过以下方式联系：
 
 - 📧 Email: your-email@example.com
-- 🐛 Issues: [GitHub Issues](https://github.com/your-username/wework-ark-bot/issues)
-- 💬 Discussions: [GitHub Discussions](https://github.com/your-username/wework-ark-bot/discussions)
+- 🐛 Issues: [GitHub Issues](https://github.com/DriftingBoats/wework-bot/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/DriftingBoats/wework-bot/discussions)
 
 ---
 

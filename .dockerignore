@@ -1,0 +1,74 @@
+# Git相关
+.git
+.gitignore
+.github
+
+# Python相关
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+build
+develop-eggs
+dist
+downloads
+eggs
+.eggs
+lib
+lib64
+parts
+sdist
+var
+wheels
+*.egg-info
+.installed.cfg
+*.egg
+
+# 虚拟环境
+venv
+env
+ENV
+
+# IDE相关
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# 日志文件
+*.log
+logs
+
+# 环境变量文件
+.env.local
+.env.development
+.env.test
+.env.production
+
+# 临时文件
+*.tmp
+*.temp
+
+# 操作系统相关
+.DS_Store
+Thumbs.db
+
+# Docker相关
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# 文档
+README.md
+*.md
+
+# 部署相关
+
+# 测试文件
+test*
+
+# 备份文件
+*.bak
+*.backup

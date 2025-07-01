@@ -93,9 +93,9 @@ else:
                 'GET /health': '健康检查'
             },
             'status': 'running',
-            'deployment': 'Vercel',
-            'github': 'https://github.com/your-username/wework-ark-bot',
-            'docs': 'https://github.com/your-username/wework-ark-bot/blob/main/README.md'
+            'deployment': 'Docker',
+            'github': 'https://github.com/DriftingBoats/wework-bot',
+            'docs': 'https://github.com/DriftingBoats/wework-bot/blob/main/README.md'
         })
 
     # 添加老黄历API接口
@@ -137,8 +137,8 @@ else:
                 'error': f'获取星座运势失败: {str(e)}'
             }), 500
 
-# 导出应用供Vercel使用
-# 这是Vercel期望的WSGI应用入口点
+# 导出应用供部署使用
+# WSGI应用入口点
 
 if __name__ == '__main__':
     # 本地开发时启动服务器

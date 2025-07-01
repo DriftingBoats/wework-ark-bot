@@ -1346,7 +1346,7 @@ class WeWorkBot:
             return
             
         try:
-            # 设置每天11:30发送消息
+            # 设置每天10:00发送消息
             schedule.every().day.at("10:00").do(self.send_daily_message)
             
             # 在后台线程中运行调度器
@@ -1363,27 +1363,18 @@ class WeWorkBot:
             logger.error(f"启动定时任务失败: {str(e)}")
 
 # 创建机器人实例
-# 检测是否在Vercel环境中运行
-is_vercel = os.getenv('VERCEL') == '1' or os.getenv('VERCEL_ENV') is not None
-
 bot = None
 
 def get_bot_instance():
     """获取机器人实例，延迟初始化"""
     global bot
     if bot is None:
-        # 在Vercel环境中不启动定时任务
-        start_scheduler = not is_vercel
-        bot = WeWorkBot(start_scheduler=start_scheduler)
+        bot = WeWorkBot(start_scheduler=True)
     return bot
 
 # 在模块导入时创建实例
 try:
-    # 在Vercel环境中不启动定时任务
-    start_scheduler = not is_vercel
-    bot = WeWorkBot(start_scheduler=start_scheduler)
-    if is_vercel:
-        logger.info("在Vercel环境中运行，定时任务已禁用")
+    bot = WeWorkBot(start_scheduler=True)
 except Exception as e:
     logger.error(f"机器人初始化失败: {str(e)}")
     bot = None
