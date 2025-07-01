@@ -213,7 +213,7 @@ setup_cron() {
     cat > /tmp/wework-cron.sh << 'EOF'
 #!/bin/bash
 # WeWork Bot 定时发送脚本
-curl -s -X POST http://localhost:5000/api/daily > /dev/null 2>&1
+curl -s -X POST http://localhost:5000/send-daily > /dev/null 2>&1
 EOF
     
     chmod +x /tmp/wework-cron.sh

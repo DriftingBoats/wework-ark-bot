@@ -161,7 +161,7 @@ curl http://localhost:5000/health
 
 # 或手动编辑 crontab
 crontab -e
-# 添加：0 10 * * 1-5 curl -X POST http://localhost:5000/api/daily
+# 添加：0 10 * * 1-5 curl -X POST http://localhost:5000/send-daily
 ```
 
 #### Docker 管理命令
