@@ -122,6 +122,12 @@ build_image() {
 start_service() {
     log_info "启动 WeWork Bot 服务..."
     
+    # 检查镜像是否存在
+    if ! docker images | grep -q "$IMAGE_NAME.*latest"; then
+        log_info "镜像不存在，开始构建..."
+        build_image
+    fi
+    
     # 停止已存在的容器
     if docker ps -a | grep -q $CONTAINER_NAME; then
         log_info "停止已存在的容器..."
@@ -134,27 +140,47 @@ start_service() {
     chmod 755 logs
     
     # 启动新容器
-    docker run -d \
+    log_info "启动Docker容器..."
+    if docker run -d \
         --name $CONTAINER_NAME \
         --restart unless-stopped \
         -p $PORT:5000 \
         -e TZ=Asia/Shanghai \
         --env-file .env \
         -v $(pwd)/logs:/app/logs \
-        $IMAGE_NAME:latest
-    
-    # 等待服务启动
-    log_info "等待服务启动..."
-    sleep 10
-    
-    # 检查服务状态
-    if docker ps | grep -q $CONTAINER_NAME; then
-        log_success "服务启动成功！"
-        show_status
-    else
-        log_error "服务启动失败，请检查日志"
+        $IMAGE_NAME:latest; then
+        
+        # 等待服务启动
+        log_info "等待服务启动..."
+        local max_attempts=30
+        local attempt=0
+        
+        while [ $attempt -lt $max_attempts ]; do
+            if docker ps | grep -q $CONTAINER_NAME; then
+                # 检查容器健康状态
+                if curl -s -f http://localhost:$PORT/api/health > /dev/null 2>&1; then
+                    log_success "服务启动成功！"
+                    show_status
+                    return 0
+                fi
+            else
+                log_error "容器已停止运行"
+                break
+            fi
+            
+            sleep 2
+            attempt=$((attempt + 1))
+            echo -n "."
+        done
+        
+        echo ""
+        log_error "服务启动失败或健康检查超时"
+        log_info "容器日志:"
         docker logs $CONTAINER_NAME
-        exit 1
+        return 1
+    else
+        log_error "Docker容器启动失败"
+        return 1
     fi
 }
 
@@ -227,14 +253,15 @@ After=docker.service
 Requires=docker.service
 
 [Service]
-Type=forking
+Type=oneshot
+RemainAfterExit=yes
 User=root
 WorkingDirectory=$WORK_DIR
 ExecStart=$WORK_DIR/deploy.sh start
 ExecStop=$WORK_DIR/deploy.sh stop
 ExecReload=$WORK_DIR/deploy.sh restart
-Restart=always
-RestartSec=10
+TimeoutStartSec=300
+TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target
