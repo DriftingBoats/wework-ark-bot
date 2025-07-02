@@ -9,9 +9,6 @@ from flask import Blueprint
 # 创建API蓝图
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
-# 配置蓝图，避免斜杠重定向问题
-api_bp.url_map.strict_slashes = False
-
 # 导入各个API模块
 from . import health
 from . import weather
