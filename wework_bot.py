@@ -26,6 +26,9 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+# 配置Flask应用，避免斜杠重定向问题
+app.url_map.strict_slashes = False
+
 class WeWorkBot:
     def __init__(self):
         self.webhook_url = os.getenv('WEBHOOK_URL')
@@ -1231,7 +1234,7 @@ class WeWorkBot:
             # 组合消息
             message = f"""💼 {work_encouragement}
 
-🔮 今日运势（<a href="https://daily.drifting.boats/">每日运势</a>）
+🔮 今日运势（<a href="{os.getenv('FORTUNE_LINK_URL', 'http://localhost:5000')}">查看详情</a>）
 {today_fortune}
 
 🌤️ {weather_info}

@@ -25,34 +25,48 @@
 - 🍽️ **智能午餐推荐**：根据天气和时节推荐合适的午餐选择
 
 ### ⚙️ 技术特性
-- ⏰ **精准定时推送**：工作日自动推送（北京时间12:30），支持自定义时间
+- ⏰ **精准定时推送**：工作日自动推送（北京时间10:00），支持自定义时间
 - 🔧 **灵活手动触发**：支持API接口手动发送消息和预览内容
 - 📊 **完善监控体系**：健康检查、状态监控、错误追踪
+- 🏗️ **模块化架构**：按功能分类的API模块，便于维护和扩展
 - 🚀 **企业级性能**：
   - 🧠 智能缓存机制（天气1小时，运势12小时）
   - 🔄 API请求重试机制，确保消息送达
   - 🛡️ 输入验证和安全过滤
   - 📈 性能监控和日志记录
   - 🎯 优雅降级策略，API失败时使用备用内容
+  - 🔗 RESTful API设计，支持多种客户端集成
 
 ## 📁 项目结构
 
 ```
-wework-ark-bot/
-├── 📄 wework_bot.py          # 🤖 机器人主程序，包含所有核心功能
+wework-bot/
+├── 📄 wework_bot.py          # 🤖 机器人主程序，包含核心功能和主要路由
 ├── 📄 index.html             # 🏠 主页界面，显示老黄历和星座运势
-├── 📁 api/
-│   └── 📄 index.py           # 🚀 API接口定义
+├── 📄 deploy.sh              # 🚀 Linux部署脚本，支持Docker部署
+├── 📄 Dockerfile             # 🐳 Docker镜像构建文件
+├── 📁 api/                   # 📂 API模块目录
+│   ├── 📄 __init__.py        # 🔧 API模块初始化，注册蓝图
+│   ├── 📄 index.py           # 🚀 WSGI应用入口点
+│   ├── 📄 health.py          # 💊 健康检查API模块
+│   ├── 📄 weather.py         # 🌤️ 天气API模块
+│   ├── 📄 fortune.py         # 📅 老黄历API模块
+│   ├── 📄 constellation.py   # ⭐ 星座运势API模块
+│   ├── 📄 message.py         # 💬 消息发送API模块
+│   └── 📄 info.py            # 📊 项目信息API模块
 ├── 📄 requirements.txt       # 📦 Python依赖包列表
 ├── 📄 .env.example          # 🔑 环境变量配置示例
 ├── 📄 .gitignore            # 🚫 Git忽略文件配置
+├── 📄 API_STRUCTURE.md      # 📋 API结构说明文档
 └── 📄 README.md             # 📖 项目文档（当前文件）
 ```
 
 ### 核心文件说明
-- **`wework_bot.py`** - 机器人主程序，包含Flask应用、定时任务、消息生成等所有功能
+- **`wework_bot.py`** - 机器人主程序，包含Flask应用、核心业务逻辑、消息生成等功能
 - **`index.html`** - 主页界面，提供老黄历和星座运势的可视化展示
-- **`api/index.py`** - Web API接口，提供项目信息展示
+- **`deploy.sh`** - Linux通用部署脚本，支持Docker容器化部署和服务管理
+- **`api/`** - 模块化API目录，按功能分类组织不同的API接口
+- **`API_STRUCTURE.md`** - 详细的API结构说明文档
 
 ## 🔧 环境变量配置
 
@@ -80,9 +94,13 @@ TIANAPI_KEY=your_tianapi_key
 # 火山引擎ARK API配置（推荐配置，用于AI生成内容）
 ARK_API_KEY=your_ark_api_key
 ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+ARK_MODEL=ep-20241127140654-xxxxx
 
 # 城市配置（可选，默认上海）
 CITY=上海
+
+# 运势详情链接（反代地址方便外网访问，默认为本地5000端口）
+FORTUNE_LINK_URL=http://localhost:5000
 
 # 定时任务配置（可选）
 # Cron表达式格式：分 时 日 月 周
@@ -98,15 +116,16 @@ CRON_SCHEDULE=0 10 * * 1-5
 | `WEATHER_API_KEY` | 🔶 推荐 | 高德地图API密钥，用于获取真实天气 | [高德开放平台](https://lbs.amap.com/) |
 | `TIANAPI_KEY` | 🔶 推荐 | 天行数据API密钥，用于获取老黄历 | [天行数据](https://www.tianapi.com/) |
 | `ARK_API_KEY` | 🔶 推荐 | 火山引擎ARK API密钥，用于AI生成 | [火山引擎ARK](https://console.volcengine.com/ark) |
-| `ARK_BASE_URL` | ⚪ 可选 | ARK API基础URL | 默认火山引擎地址 |
+| `ARK_BASE_URL` | ⚪ 可选 | ARK API基础URL | 默认火山引擎地址 || `ARK_MODEL` | 🔶 推荐 | ARK模型端点ID | 火山引擎ARK控制台创建的模型端点 |
 | `CITY` | ⚪ 可选 | 城市名称，用于天气播报 | 默认上海，支持全国城市 |
+| `FORTUNE_LINK_URL` | ⚪ 可选 | 运势详情链接地址 | 默认本地5000端口，可配置为反代地址 |
 | `CRON_SCHEDULE` | ⚪ 可选 | 定时任务执行时间 | 默认每周一到周五上午10点 |
 
 ### 🎯 配置优先级
 
 - **最小配置**：仅需 `WEBHOOK_URL`，其他功能使用模拟数据
 - **推荐配置**：添加 `WEATHER_API_KEY` 和 `TIANAPI_KEY`，获得真实数据
-- **完整配置**：再添加 `ARK_API_KEY`，启用AI生成功能
+- **完整配置**：再添加 `ARK_API_KEY` 和 `ARK_MODEL`，启用AI生成功能
 
 ## 🚀 部署指南
 
@@ -248,7 +267,7 @@ docker build -t wework-bot .
 ```bash
 # 克隆项目
 git clone https://github.com/DriftingBoats/wework-bot.git
-cd wework-ark-bot
+cd wework-bot
 
 # 安装依赖
 pip install -r requirements.txt
@@ -269,25 +288,34 @@ python wework_bot.py
 
 ## 📡 API接口文档
 
+> 💡 **提示**：详细的API架构说明请参考 [API_STRUCTURE.md](API_STRUCTURE.md) 文档
+
 ### 接口概览
 
 | 接口 | 方法 | 功能 | 说明 |
 |------|------|------|------|
-| `/` | GET | 项目信息 | 查看项目状态和API文档 |
-| `/index.html` | GET | 主页界面 | 显示老黄历和星座运势 |
-| `/status` | GET | 运行状态 | 机器人运行状态检查 |
-| `/health` | GET | 健康检查 | 服务状态监控 |
-| `/send` | POST | 手动发送 | 发送自定义消息到群 |
-| `/send-daily` | POST | 发送日报 | 立即发送每日消息 |
-| `/preview-daily` | GET | 预览日报 | 预览每日消息内容 |
-| `/api/fortune` | GET | 老黄历API | 获取今日老黄历信息 |
-| `/api/constellation` | GET | 星座运势API | 获取指定星座运势 |
+| `/` | GET | 主页界面 | 显示老黄历和星座运势 |
+| `/api/` | GET | 项目信息 | 查看项目状态和API文档 |
+| `/api/health/` | GET | 健康检查 | 服务状态监控 |
+| `/api/health/status` | GET | 运行状态 | 机器人运行状态检查 |
+| `/api/message/send` | POST | 手动发送 | 发送自定义消息到群 |
+| `/api/message/send-daily` | POST | 发送日报 | 立即发送每日消息 |
+| `/api/message/preview-daily` | GET | 预览日报 | 预览每日消息内容 |
+| `/api/fortune/` | GET | 老黄历API | 获取今日老黄历信息 |
+| `/api/constellation/` | GET | 星座运势API | 获取指定星座运势 |
+| `/api/weather/` | GET | 天气API | 获取天气信息 |
 
 ### 详细接口说明
 
-#### 1. 📊 项目信息
+#### 1. 🏠 主页界面
 ```http
 GET /
+```
+**用途：** 访问可视化主页，显示老黄历和星座运势
+
+#### 2. 📊 项目信息
+```http
+GET /api/
 ```
 **响应示例：**
 ```json
@@ -300,37 +328,31 @@ GET /
 }
 ```
 
-#### 2. 🏠 主页界面
-```http
-GET /index.html
-```
-**用途：** 访问可视化主页，显示老黄历和星座运势
-
 #### 3. 💬 手动发送消息
 ```http
-POST /send
+POST /api/message/send
 Content-Type: application/json
 
 {
-  "content": "要发送的消息内容"
+  "message": "要发送的消息内容"
 }
 ```
 
 #### 4. 📅 立即发送每日消息
 ```http
-POST /send-daily
+POST /api/message/send-daily
 ```
 **用途：** 测试功能，立即触发每日消息推送
 
 #### 5. 👀 预览每日消息
 ```http
-GET /preview-daily
+GET /api/message/preview-daily
 ```
 **用途：** 预览今日消息内容，不发送到群
 
 #### 6. 📅 获取老黄历信息
 ```http
-GET /api/fortune
+GET /api/fortune/
 ```
 **响应示例：**
 ```json
@@ -342,15 +364,30 @@ GET /api/fortune
 
 #### 7. ⭐ 获取星座运势
 ```http
-GET /api/constellation?sign=leo
+GET /api/constellation/?sign=狮子座
 ```
 **参数说明：**
-- `sign`: 星座名称（英文），支持12星座：aries, taurus, gemini, cancer, leo, virgo, libra, scorpio, sagittarius, capricorn, aquarius, pisces
+- `sign`: 星座名称（中文），支持12星座：白羊座、金牛座、双子座、巨蟹座、狮子座、处女座、天秤座、天蝎座、射手座、摩羯座、水瓶座、双鱼座
 
 **响应示例：**
 ```json
 {
   "data": "⭐ 狮子座今日运势\n📅 日期：2025-06-30",
+  "status": "success"
+}
+```
+
+#### 8. 🌤️ 获取天气信息
+```http
+GET /api/weather/?city=上海
+```
+**参数说明：**
+- `city`: 城市名称（可选），默认使用环境变量中配置的城市
+
+**响应示例：**
+```json
+{
+  "data": "🌤️ 上海今日：晴转多云 15°C~22°C\n东南风2级，空气质量良好",
   "status": "success"
 }
 ```
@@ -374,29 +411,24 @@ GET /api/constellation?sign=leo
 
 ### 完整版消息（启用所有API）
 ```
-🌟 各位打工人，甲辰年冬月廿七的星期三来啦！
+💼 各位打工人，甲辰年冬月廿七的星期三来啦！
 今天阳光正好，适合在办公室里做白日梦~ ✨
 
-🌤️ 【天气播报】
-上海今日：晴转多云 15°C~22°C
-东南风2级，空气质量良好
-紫外线指数：中等，建议防晒
-
-📅 【今日运势】
-宜：会友、出行、签约
-忌：搬家、装修、投资
+🔮 今日运势（查看详情）
+🌝 农历：甲辰年 冬月廿七
+✅ 宜：会友、出行、签约
+❌ 忌：搬家、装修、投资
 冲煞：冲狗(戊戌)煞南
 💡 属狗的朋友今天要低调一些哦~
 
-😄 【今日吐槽】
-又是为公司贡献GDP的一天！
-努力工作，争取让老板早日换新车 🚗💨
+🌤️ 上海今日：晴转多云 15°C~22°C
+东南风2级，空气质量良好
+紫外线指数：中等，建议防晒
 
-🍽️ 【午餐推荐】
-天气不错，来点清爽的：
+🍽️ 午餐推荐：天气不错，来点清爽的：
 🥗 轻食沙拉 | 🍜 日式拉面 | 🍱 精致便当
 
-愿大家今天都能愉快摸鱼，准时下班！🐟✨
+祝大家今天也要开心摸鱼哦~ 🐟✨
 ```
 
 ### 精简版消息（仅基础配置）
@@ -429,6 +461,20 @@ crontab -e
 # 或使用部署脚本安装
 ./deploy.sh install-cron
 ```
+
+### 自定义运势链接
+
+运势详情链接支持环境变量配置，在 `.env` 文件中设置：
+
+```bash
+# 运势详情链接（可选，默认为本地5000端口）
+FORTUNE_LINK_URL=https://your-domain.com
+```
+
+**常用配置示例**：
+- 本地开发：`FORTUNE_LINK_URL=http://localhost:5000`
+- 反向代理：`FORTUNE_LINK_URL=https://your-domain.com`
+- 外部服务：`FORTUNE_LINK_URL=https://external-service.com/fortune`
 
 ### 配置AI生成功能
 
@@ -489,16 +535,22 @@ curl -X GET http://localhost:5000/api/message/preview-daily
 # 发送自定义消息
 curl -X POST http://localhost:5000/api/message/send \
   -H "Content-Type: application/json" \
-  -d '{"content": "Hello from WeWork Bot!"}'
+  -d '{"message": "Hello from WeWork Bot!"}'
 
 # 健康检查
 curl http://localhost:5000/api/health/
 
 # 获取老黄历
-curl http://localhost:5000/api/fortune
+curl http://localhost:5000/api/fortune/
 
 # 获取星座运势
-curl http://localhost:5000/api/constellation?sign=leo
+curl "http://localhost:5000/api/constellation/?sign=狮子座"
+
+# 获取天气信息
+curl "http://localhost:5000/api/weather/?city=上海"
+
+# 获取项目信息
+curl http://localhost:5000/api/
 ```
 
 ## 🛠️ 故障排除
@@ -852,9 +904,9 @@ sudo systemctl restart docker
    [Service]
    Type=oneshot
    RemainAfterExit=yes
-   WorkingDirectory=/path/to/wework-ark-bot
-   ExecStart=/path/to/wework-ark-bot/deploy.sh start
-   ExecStop=/path/to/wework-ark-bot/deploy.sh stop
+   WorkingDirectory=/path/to/wework-bot
+   ExecStart=/path/to/wework-bot/deploy.sh start
+   ExecStop=/path/to/wework-bot/deploy.sh stop
    
    [Install]
    WantedBy=multi-user.target
@@ -867,13 +919,27 @@ sudo systemctl restart docker
 
 ## 📈 版本历史
 
+### v2.1.2 (2024-12-25) - 配置优化版
+- 🔧 将运势详情链接改为环境变量配置（FORTUNE_LINK_URL）
+- ⚙️ 移除硬编码链接，支持反向代理地址配置
+- 📝 更新.env.example和README配置说明
+- 🔗 默认链接设置为本地5000端口
+
+### v2.1.1 (2024-12-25) - 文档优化版
+- 📚 全面优化README文档，修正API路径和配置说明
+- 🔧 修复CRON_SCHEDULE环境变量读取问题
+- 📝 更新项目结构说明，反映模块化架构
+- 🔗 修正GitHub仓库链接和项目名称
+- ⚙️ 完善环境变量配置说明，新增ARK_MODEL配置
+- 📖 新增API_STRUCTURE.md文档引用
+
 ### v2.1.0 (2024-12-25) - AI智能版
 - ✨ 新增AI动态开场白生成功能
 - 🎨 优化运势显示，农历格式现代化
 - 🧹 简化冲煞信息，转换为大白话提醒
 - 🗑️ 移除彭祖百忌显示，提升用户体验
 - 📱 优化API接口展示页面
-- 📚 完善项目文档和部署指南
+- 🏗️ 实现模块化API架构设计
 
 ### v2.0.0 (2024-12) - 定时推送版
 - ⏰ 添加定时推送功能

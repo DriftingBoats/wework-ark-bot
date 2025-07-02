@@ -287,8 +287,16 @@ remove_autostart() {
 setup_cron() {
     log_info "设置定时任务..."
     
-    # 从环境变量读取cron表达式，如果没有设置则使用默认值
+    # 从.env文件读取cron表达式，如果没有设置则使用默认值
+    if [ -f ".env" ]; then
+        # 读取.env文件中的CRON_SCHEDULE配置
+        CRON_SCHEDULE=$(grep "^CRON_SCHEDULE=" .env | cut -d '=' -f2- | sed 's/^["\x27]\|["\x27]$//g')
+    fi
+    
+    # 如果.env文件中没有配置或配置为空，使用默认值
     CRON_SCHEDULE=${CRON_SCHEDULE:-"0 10 * * 1-5"}
+    
+    log_info "使用定时任务配置: $CRON_SCHEDULE"
     
     # 创建定时任务脚本
     cat > /tmp/wework-cron.sh << 'EOF'
