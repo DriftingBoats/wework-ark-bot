@@ -202,7 +202,7 @@ show_status() {
     log_info "访问地址:"
     echo "  本地: http://localhost:$PORT"
     echo "  局域网: http://${local_ip}:$PORT"
-    echo "  健康检查: http://localhost:$PORT/health"
+    echo "  健康检查: http://localhost:$PORT/api/health"
     echo ""
 }
 
@@ -294,7 +294,7 @@ setup_cron() {
     cat > /tmp/wework-cron.sh << 'EOF'
 #!/bin/bash
 # WeWork Bot 定时发送脚本
-curl -s -X POST http://localhost:5000/send-daily || echo "$(date): Failed to send daily message" >> /var/log/wework-bot-cron.log
+curl -s -X POST http://localhost:5000/api/message/send-daily || echo "$(date): Failed to send daily message" >> /var/log/wework-bot-cron.log
 EOF
     
     chmod +x /tmp/wework-cron.sh

@@ -1065,9 +1065,6 @@
                     if (data.date_info.lunar_formatted) {
                         lunarDate = data.date_info.lunar_formatted;
                     }
-                    if (data.date_info.shengxiao) {
-                        festivalInfo += `生肖${data.date_info.shengxiao}`;
-                    }
                 }
                 
                 if (data.festival_info) {
@@ -1217,8 +1214,7 @@
                         lunarDate = value;
                     } else if (label.includes('节日') || label.includes('节气')) {
                         festivalInfo += value + ' ';
-                    } else if (label.includes('生肖')) {
-                        festivalInfo += '生肖 ' + value;
+
                     } else if (label.includes('宜')) {
                         yiText = value;
                     } else if (label.includes('忌')) {

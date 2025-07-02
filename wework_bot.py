@@ -33,6 +33,7 @@ class WeWorkBot:
         self.city = os.getenv('CITY', '上海')  # 默认城市
         self.ark_api_key = os.getenv('ARK_API_KEY')
         self.ark_base_url = os.getenv('ARK_BASE_URL', 'https://ark.cn-beijing.volces.com/api/v3')
+        self.ark_model = os.getenv('ARK_MODEL', 'deepseek-v3-250324')
         
         # 重试配置
         self.max_retries = 3
@@ -99,7 +100,7 @@ class WeWorkBot:
         # 如果所有重试都失败，抛出最后一个异常
         raise last_exception
     
-    def call_ark_api(self, prompt, max_tokens=200, temperature=0.8):
+    def call_ark_api(self, prompt, max_tokens=200, temperature=0.9, top_p=0.95):
         """调用 Volces Engine ARK API"""
         if not self.ark_api_key or not self.ark_base_url:
             return None
@@ -111,7 +112,7 @@ class WeWorkBot:
             }
             
             data = {
-                'model': 'deepseek-v3-250324',
+                'model': self.ark_model,
                 'messages': [
                     {
                         'role': 'user',
@@ -119,7 +120,8 @@ class WeWorkBot:
                     }
                 ],
                 'max_tokens': max_tokens,
-                'temperature': temperature
+                'temperature': temperature,
+                'top_p': top_p
             }
             
             response = requests.post(
@@ -1047,135 +1049,120 @@ class WeWorkBot:
         ]
         
         return random.choice(fallback_fortunes)
-    
-    def get_funny_bankruptcy_message(self):
-        """生成戏谑幽默的将公司干倒闭的话语"""
-        # 优先使用大模型生成
-        if self.ark_api_key:
-            # 获取当前星期
-            from datetime import datetime
-            import pytz
-            now = datetime.now(pytz.timezone('Asia/Shanghai'))
-            weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-            current_weekday = weekdays[now.weekday()]
-            
-            # 使用更丰富的提示词，让每次生成都不同
-            humor_themes = [
-                f"今天是{current_weekday}，请结合这个星期特点生成一句关于上班摸鱼的幽默话语",
-                f"今天是{current_weekday}，请以'据可靠消息'开头，编一个关于老板或公司的搞笑传言",
-                f"今天是{current_weekday}，请模仿新闻播报的语气，播报一条关于员工摸鱼的'重大新闻'",
-                f"今天是{current_weekday}，请以'温馨提示'开头，提醒大家今天的摸鱼注意事项",
-                f"今天是{current_weekday}，请编一个关于工作效率和公司倒闭之间关系的搞笑统计数据",
-                f"今天是{current_weekday}，请以'最新研究表明'开头，发布一个关于摸鱼的'科学发现'",
-                f"今天是{current_weekday}，请模仿天气预报的语气，播报今天的'摸鱼指数'",
-                f"今天是{current_weekday}，请编一个关于KPI完成情况的搞笑总结"
-            ]
-            
-            theme = random.choice(humor_themes)
-            prompt = f"""{theme}。
-            
-要求：
-1. 语言风趣幽默，带有自嘲和调侃色彩
-2. 内容要丰富一些，可以2-3句话，让人看完会心一笑
-3. 适合在工作群里发送，不要过分或冒犯
-4. 多使用emoji表情增加趣味性
-5. 要有创意，避免老套的说法
-6. 可以适当夸张，但保持玩笑性质
 
-请直接输出内容，不要解释。"""
-            
-            ai_message = self.call_ark_api(prompt, max_tokens=200, temperature=0.9)
-            if ai_message:
-                return ai_message
-        
-        # 降级到固定文案（更丰富有趣的版本）
-        messages = [
-            "📺 摸鱼新闻联播：据本台记者报道，今日全公司摸鱼指数再创新高，预计公司倒闭进度条已加载至85%。老板表示很欣慰，终于可以提前退休了 🐟📈",
-            "🌡️ 今日摸鱼天气预报：上班热情持续走低，工作效率维持在冰点附近。建议大家做好保暖措施，以防被老板的怒火冻伤 ❄️😂",
-            "📊 最新研究表明：员工每摸一次鱼，公司倒闭概率增加0.1%。按照目前的摸鱼频率，预计下周三公司就能成功破产，大家再接再厉！ 🔬📉",
-            "🎯 温馨提示：今日KPI完成度为-50%，恭喜大家成功让公司业绩倒退到石器时代。考古学家已经在路上了 🏺⛏️",
-            "📰 据可靠消息：老板昨晚做梦都在笑，因为终于找到了让公司快速倒闭的秘诀——雇佣我们这群'人才'。梦里他已经在马尔代夫晒太阳了 🏖️😎",
-            "🏆 重大喜讯：经过全体员工的不懈努力，我们成功将'如何让公司破产'这门艺术发挥到了极致。预计很快就能获得'年度最佳倒闭团队'奖 🥇💸",
-            "⚡ 突发新闻：公司账户余额与员工工作积极性发生了神奇的量子纠缠现象，两者同时趋近于零。物理学家表示这违反了能量守恒定律 🔬⚛️",
-            "🎪 今日马戏团表演：观看员工如何在上班时间完美演绎'身在曹营心在汉'。门票免费，老板买单，欢迎围观！ 🎭🍿",
-            "📈 股市分析：如果摸鱼也能上市，我们公司绝对是蓝筹股。建议大家抓紧时间投资，错过这村就没这店了！ 💰📊",
-            "🔮 占卜预测：水晶球显示，按照目前的工作状态，公司将在农历七月十五成功转型为灵异主题乐园。门票已开始预售 👻🎢"
-        ]
-        return random.choice(messages)
-    
-    def generate_dynamic_greeting(self, date_str, current_weekday):
-        """使用LLM生成动态开场白"""
+    def get_work_encouragement(self, current_weekday):
+        """根据工作日生成哄用户上班的鼓励话语"""
         # 优先使用大模型生成
         if self.ark_api_key:
-            # 根据不同星期和时间生成不同风格的开场白
-            greeting_styles = [
-                f"请为企业微信群机器人生成一个{current_weekday}的有趣开场白，日期是{date_str}",
-                f"请以电台主播的语气，为{current_weekday}({date_str})生成一个幽默的开场白",
-                f"请以摸鱼专家的身份，为{current_weekday}({date_str})写一个搞笑的问候语",
-                f"请模仿新闻播报员，为{current_weekday}({date_str})生成一个有趣的开场白",
-                f"请以打工人的角度，为{current_weekday}({date_str})写一个自嘲式的问候语",
-                f"请以AI助手的身份，为{current_weekday}({date_str})生成一个温馨幽默的开场白"
+            # 社畜黑色幽默风格的鼓励话语
+            encouragement_styles = [
+                f"请以一个资深社畜的第一人称视角，为{current_weekday}写一句带有黑色幽默的自嘲式上班鼓励语",
+                f"请模仿一个已经麻木但依然坚强的打工人，为{current_weekday}生成一句苦中作乐的上班感悟",
+                f"请以一个在职场摸爬滚打多年的老社畜口吻，为{current_weekday}写一句既丧又燃的工作箴言",
+                f"请模仿一个对工作又爱又恨的社畜，为{current_weekday}生成一句充满矛盾情感的上班独白",
+                f"请以一个习惯了996但依然保持幽默感的打工人身份，为{current_weekday}写一句自我安慰式的工作感言",
+                f"请模仿一个在格子间里求生存的社畜，为{current_weekday}生成一句带有生存智慧的上班心得",
+                f"请以一个经历过无数加班夜晚的老员工视角，为{current_weekday}写一句既现实又温暖的工作感悟",
+                f"请模仿一个在职场浮沉中找到平衡的社畜，为{current_weekday}生成一句充满人生哲理的上班语录",
+                f"请以一个对现状无奈但依然努力的打工人口吻，为{current_weekday}写一句自嘲中带着坚韧的工作宣言",
+                f"请模仿一个在都市生活压力下依然保持乐观的社畜，为{current_weekday}生成一句苦涩中带甜的上班感言"
             ]
             
-            style = random.choice(greeting_styles)
+            style = random.choice(encouragement_styles)
             prompt = f"""{style}。
             
 要求：
-1. 语言风趣幽默，适合工作群聊
-2. 长度控制在2-3句话
-3. 要体现{current_weekday}的特点
-4. 适当使用emoji表情
-5. 语气要亲切友好
-6. 可以结合摸鱼、打工等职场梗
-7. 避免过于正式或严肃
+1. 必须使用第一人称来叙述
+2. 语调要有黑色幽默感，既丧又不失希望
+3. 体现社畜的真实心理状态和生存智慧
+4. 长度控制在2-3句话，要有画面感
+5. 可以适当自嘲，但要有积极的底色
+6. 结合{current_weekday}的特殊感受（如周一的绝望、周五的期待等）
+7. 语言要接地气，有共鸣感
+8. 适当使用emoji，但不要过多
+9. 可以提及咖啡、地铁等社畜日常元素
 
-请直接输出开场白内容，不要解释。"""
+请直接输出鼓励话语，不要解释。"""
             
-            ai_greeting = self.call_ark_api(prompt, max_tokens=100, temperature=0.9)
-            if ai_greeting:
-                return ai_greeting
+            ai_encouragement = self.call_ark_api(prompt, max_tokens=100, temperature=0.95, top_p=0.9)
+            if ai_encouragement:
+                return ai_encouragement
         
-        # 降级到固定开场白
-        fallback_greetings = {
-            '周一': f"🌅 {current_weekday}好！新的一周开始了，今天是{date_str}\n💪 充满希望的一周，让我们一起加油鸭~",
-            '周二': f"⚡ {current_weekday}快乐！今天是{date_str}\n🎯 继续昨天的干劲，今天也要元气满满哦~",
-            '周三': f"🎪 {current_weekday}好呀！今天是{date_str}\n📻 一周过半啦，坚持就是胜利，摸鱼电台继续陪伴大家~",
-            '周四': f"🚀 {current_weekday}快乐！今天是{date_str}\n🌟 胜利在望的一天，明天就是快乐星期五啦~",
-            '周五': f"🎉 终于到了快乐{current_weekday}！今天是{date_str}\n🍻 周末在向我们招手，今天让我们愉快地收尾这一周~",
-            '周六': f"😴 美好的{current_weekday}！今天是{date_str}\n🛋️ 周末时光，是时候好好休息一下了~",
-            '周日': f"☀️ 悠闲的{current_weekday}！今天是{date_str}\n📚 周末的最后一天，为新的一周做好准备吧~"
+        # 降级到固定文案
+        encouragements = {
+            '周一': [
+                "新的一周开始啦！虽然有点困，但是想想周末的美好，今天也要元气满满哦~ 💪",
+                "周一蓝调？不存在的！今天是新开始，让我们一起创造美好的回忆吧~ ✨",
+                "Monday Blues退散！今天的你一定会遇到很多美好的事情~ 🌟"
+            ],
+            '周二': [
+                "周二是一周中最有潜力的一天！昨天的疲惫已经过去，今天充满无限可能~ 🚀",
+                "Tuesday能量日！今天的效率一定会让你惊喜的，加油鸭~ 💫",
+                "周二小贴士：保持微笑，好运自然来！今天也要开开心心的~ 😊"
+            ],
+            '周三': [
+                "恭喜你！一周已经过半啦！坚持就是胜利，你已经很棒了~ 🎉",
+                "Wednesday Wisdom：今天是转折点，下半周会越来越轻松的~ 🌈",
+                "周三加油站！给自己一个大大的拥抱，你值得所有的美好~ 🤗"
+            ],
+            '周四': [
+                "Thursday Power！明天就是快乐星期五啦，今天再努力一点点~ 💪",
+                "周四小确幸：距离周末只有一天了！今天的每一分努力都值得~ ⭐",
+                "Thursday Motivation：你已经走了这么远，最后一天也要漂亮收官~ 🏆"
+            ],
+            '周五': [
+                "TGIF！Thank God It's Friday！周末在向你招手啦~ 🙌",
+                "Friday Feeling！今天心情特别好对不对？让我们愉快地结束这一周~ 🎊",
+                "周五福利：今天可以稍微摸摸鱼，毕竟马上就周末了嘛~ 🐟"
+            ]
         }
         
-        return fallback_greetings.get(current_weekday, f"🌈 {current_weekday}好！今天是{date_str}\n✨ 美好的一天开始了，让我们一起度过愉快的时光~")
+        weekday_encouragements = encouragements.get(current_weekday, [
+            "今天也要加油哦！每一天都是新的开始~ ✨"
+        ])
+        
+        return random.choice(weekday_encouragements)
     
     def get_lunch_recommendation(self, weather_info):
         """根据天气推荐午餐"""
         # 优先使用大模型生成
         if self.ark_api_key:
-            # 使用更丰富的提示词模板
+            # 美食大师鉴赏风格的推荐
             recommendation_styles = [
-                f"请以美食博主的语气，根据天气'{weather_info}'推荐今日午餐",
-                f"请以营养师的专业角度，结合天气'{weather_info}'给出午餐建议",
-                f"请以吃货的热情，根据天气'{weather_info}'安利一道必吃美食",
-                f"请以厨师的创意思维，结合天气'{weather_info}'设计今日特色午餐",
-                f"请以美食评论家的口吻，根据天气'{weather_info}'点评推荐午餐",
-                f"请以朋友聊天的语气，根据天气'{weather_info}'分享午餐心得"
+                f"请以米其林星级主厨的专业眼光，根据天气'{weather_info}'推荐一道精致午餐",
+                f"请模仿法式料理大师的优雅品味，结合天气'{weather_info}'设计一份艺术般的午餐",
+                f"请以日本料理职人的匠心精神，根据天气'{weather_info}'推荐一道季节性美食",
+                f"请模仿意大利美食大师的热情，结合天气'{weather_info}'推荐一道充满灵魂的午餐",
+                f"请以中华料理宗师的深厚功底，根据天气'{weather_info}'推荐一道传统与创新结合的午餐",
+                f"请模仿分子料理先驱的创新思维，结合天气'{weather_info}'设计一道前卫的午餐体验",
+                f"请以泰式料理大师的香料智慧，根据天气'{weather_info}'推荐一道层次丰富的午餐",
+                f"请模仿地中海料理专家的健康理念，结合天气'{weather_info}'推荐一道营养均衡的午餐",
+                f"请以印度料理大师的香料艺术，根据天气'{weather_info}'推荐一道充满异域风情的午餐",
+                f"请模仿韩式料理名家的发酵哲学，结合天气'{weather_info}'推荐一道富有层次的午餐",
+                f"请以西班牙料理大师的奔放创意，根据天气'{weather_info}'推荐一道充满活力的午餐",
+                f"请模仿北欧料理先锋的简约美学，结合天气'{weather_info}'推荐一道纯净优雅的午餐"
             ]
             
             style = random.choice(recommendation_styles)
             prompt = f"""{style}。
             
 要求：
-1. 内容要生动有趣，有画面感
-2. 可以包含2-3句话，描述食物的诱人之处
-3. 结合天气特点说明为什么适合
-4. 语言要有感染力，让人看了就想吃
-5. 适当使用emoji表情
-6. 避免过于正式，要接地气
+1. 语言要有大师级的专业性和艺术感
+2. 详细描述食材的选择和搭配哲学
+3. 解释为什么这道菜与当前天气完美契合
+4. 用诗意的语言描述味觉层次和口感体验
+5. 体现对食材本质的深刻理解
+6. 包含烹饪技法的精妙之处
+7. 长度控制在2-3句话，但要有深度
+8. 语调要优雅而充满激情
+9. 可以提及食材的产地、季节性等细节
+10. 适当使用专业术语，但保持可读性
+11. 要有美食鉴赏家的品味和见解
+12. 适当使用emoji，但要克制优雅
 
 请直接输出推荐内容，不要解释。"""
             
-            ai_recommendation = self.call_ark_api(prompt, max_tokens=150, temperature=0.8)
+            ai_recommendation = self.call_ark_api(prompt, max_tokens=150, temperature=0.95, top_p=0.9)
             if ai_recommendation:
                 return ai_recommendation
         
@@ -1234,18 +1221,15 @@ class WeWorkBot:
             # 获取今日运势
             today_fortune = self.get_today_fortune()
             
-            # 获取幽默话语
-            funny_message = self.get_funny_bankruptcy_message()
-            
             # 获取午餐推荐
             lunch_recommendation = self.get_lunch_recommendation(weather_info)
             
-            # 生成动态开场白并合并幽默话语
-            greeting = self.generate_dynamic_greeting(date_str, current_weekday)
-            combined_greeting = f"{greeting}\n😄 {funny_message}"
+            
+            # 根据工作日生成哄用户上班的话语
+            work_encouragement = self.get_work_encouragement(current_weekday)
             
             # 组合消息
-            message = f"""📻 {combined_greeting}
+            message = f"""💼 {work_encouragement}
 
 🔮 今日运势（<a href="https://daily.drifting.boats/">每日运势</a>）
 {today_fortune}
@@ -1331,7 +1315,6 @@ class WeWorkBot:
             logger.info("每日消息发送成功")
         else:
             logger.error("每日消息发送失败")
-    
 
 
 # 创建机器人实例
@@ -1351,7 +1334,21 @@ except Exception as e:
     logger.error(f"机器人初始化失败: {str(e)}")
     bot = None
 
+# 注册API蓝图
+from api import api_bp
+app.register_blueprint(api_bp)
+
 @app.route('/')
+def root():
+    """根路径 - 返回运势查看界面"""
+    try:
+        with open('index.html', 'r', encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        from flask import redirect
+        return redirect('/api/')
+
+@app.route('/api/')
 def index():
     """主页 - 返回运势查看界面"""
     try:
@@ -1361,160 +1358,17 @@ def index():
         return jsonify({
             'status': 'ok',
             'message': '企业微信群机器人运行中',
+            'api_docs': '/api',
+            'health_check': '/api/health',
             'endpoints': {
-                'status': '/status',
-                'health': '/health',
-                'send': '/send (POST)',
-                'send_daily': '/send-daily (POST)',
-                'preview_daily': '/preview-daily (GET)'
+                'send': '/api/message/send (POST)',
+                'send_daily': '/api/message/send-daily (POST)',
+                'preview_daily': '/api/message/preview-daily (GET)',
+                'weather': '/api/weather (GET)',
+                'fortune': '/api/fortune (GET)',
+                'constellation': '/api/constellation (GET)'
             }
         })
-
-@app.route('/status', methods=['GET'])
-def status():
-    """机器人状态检查接口"""
-    current_bot = get_bot_instance()
-    if current_bot is None:
-        return jsonify({
-            'status': 'error',
-            'message': '机器人初始化失败'
-        }), 500
-    
-    return jsonify({
-        'status': 'ok',
-        'message': '企业微信群机器人运行中',
-        'webhook_configured': bool(current_bot.webhook_url),
-        'city': current_bot.city
-    })
-
-@app.route('/health')
-def health_check():
-    """健康检查接口"""
-    bot = WeWorkBot()
-    health_status = {
-        'status': 'healthy',
-        'timestamp': datetime.now().isoformat(),
-        'service': 'wework-bot',
-        'config': {
-            'webhook_configured': bool(bot.webhook_url),
-            'weather_api_configured': bool(bot.weather_api_key),
-            'tianapi_configured': bool(os.getenv('TIANAPI_KEY')),
-            'ark_api_configured': bool(bot.ark_api_key)
-        },
-        'cache_stats': {
-            'cached_items': len(bot.cache),
-            'cache_keys': list(bot.cache.keys())
-        }
-    }
-    
-    # 检查关键配置
-    if not bot.webhook_url:
-        health_status['status'] = 'warning'
-        health_status['warnings'] = ['WEBHOOK_URL not configured']
-    
-    return jsonify(health_status)
-
-@app.route('/send', methods=['POST'])
-def send_message():
-    """手动发送消息接口"""
-    try:
-        current_bot = get_bot_instance()
-        if current_bot is None:
-            return jsonify({'status': 'error', 'message': '机器人未初始化'}), 500
-            
-        data = request.get_json()
-        content = data.get('content', '')
-        
-        if not content:
-            return jsonify({'status': 'error', 'message': '消息内容不能为空'}), 400
-        
-        success = current_bot.send_message(content)
-        
-        if success:
-            return jsonify({'status': 'success', 'message': '消息发送成功'})
-        else:
-            return jsonify({'status': 'error', 'message': '消息发送失败'}), 500
-            
-    except Exception as e:
-        logger.error(f"发送消息异常: {str(e)}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/send-daily', methods=['POST'])
-def send_daily_now():
-    """立即发送每日消息（测试用）"""
-    try:
-        current_bot = get_bot_instance()
-        if current_bot is None:
-            return jsonify({'status': 'error', 'message': '机器人未初始化'}), 500
-            
-        current_bot.send_daily_message()
-        return jsonify({'status': 'success', 'message': '每日消息已发送'})
-    except Exception as e:
-        logger.error(f"发送每日消息异常: {str(e)}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/preview-daily', methods=['GET'])
-def preview_daily_message():
-    """预览每日消息内容"""
-    try:
-        current_bot = get_bot_instance()
-        if current_bot is None:
-            return jsonify({'status': 'error', 'message': '机器人未初始化'}), 500
-            
-        message = current_bot.generate_daily_message()
-        if message is None:
-            return jsonify({'status': 'success', 'message': '今天是周末，不推送消息'})
-        return jsonify({'status': 'success', 'message': message})
-    except Exception as e:
-        logger.error(f"预览每日消息异常: {str(e)}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/fortune', methods=['GET'])
-def get_fortune():
-    """获取今日老黄历信息"""
-    try:
-        current_bot = get_bot_instance()
-        if current_bot is None:
-            return jsonify({'success': False, 'error': '机器人未初始化'}), 500
-            
-        fortune_data = current_bot.get_today_fortune_structured()
-        return jsonify({
-            'success': True,
-            'data': fortune_data
-        })
-    except Exception as e:
-        logger.error(f"获取老黄历异常: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'获取老黄历失败: {str(e)}'
-        }), 500
-
-@app.route('/api/constellation', methods=['GET'])
-def get_constellation():
-    """获取星座运势信息"""
-    try:
-        current_bot = get_bot_instance()
-        if current_bot is None:
-            return jsonify({'success': False, 'error': '机器人未初始化'}), 500
-            
-        sign = request.args.get('sign')
-        if not sign:
-            return jsonify({
-                'success': False,
-                'error': '请提供星座参数'
-            }), 400
-        
-        constellation_data = current_bot.get_constellation_fortune_structured(sign)
-        return jsonify({
-            'success': True,
-            'data': constellation_data
-        })
-    except Exception as e:
-        logger.error(f"获取星座运势异常: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'获取星座运势失败: {str(e)}'
-        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

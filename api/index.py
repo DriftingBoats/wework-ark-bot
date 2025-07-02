@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+WSGI应用入口点
+用于部署到生产环境
+"""
 
 import sys
 import os
@@ -30,7 +34,7 @@ except Exception as e:
     from flask import Flask, jsonify
     app = Flask(__name__)
     
-    @app.route('/')
+    @app.route('/api/')
     def error_handler():
         return jsonify({
             'name': '企业微信群机器人',
@@ -44,7 +48,7 @@ except Exception as e:
         }), 500
 else:
     # 添加静态文件服务
-    @app.route('/index.html')
+    @app.route('/api/index.html')
     def serve_index():
         from flask import send_from_directory
         import os
@@ -52,90 +56,13 @@ else:
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         return send_from_directory(project_root, 'index.html')
     
-    @app.route('/home')
+    @app.route('/api/home')
     def serve_home():
         from flask import send_from_directory
         import os
         # 获取项目根目录
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         return send_from_directory(project_root, 'index.html')
-    
-    # 根路径直接显示index.html页面
-    @app.route('/')
-    def serve_index_root():
-        from flask import send_from_directory
-        import os
-        # 获取项目根目录
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        return send_from_directory(project_root, 'index.html')
-    
-    # API信息页面移到/api路径
-    @app.route('/api')
-    def api_index():
-        from flask import jsonify
-        return jsonify({
-            'name': '企业微信群机器人',
-            'version': '2.1.0',
-            'description': '功能丰富的企业微信群机器人，支持定时发送每日消息',
-            'features': [
-                '🌤️ 天气播报 - 获取实时天气信息',
-                '📅 今日运势 - 老黄历信息，包含宜忌、冲煞等',
-                '😄 搞笑内容 - 每日搞笑破产文学',
-                '🍽️ 午餐推荐 - 智能午餐建议',
-                '⏰ 定时发送 - 工作日自动推送',
-                '🤖 AI生成 - 动态开场白和智能内容'
-            ],
-            'api_endpoints': {
-                'GET /api': '项目信息和API文档',
-                'POST /send': '手动发送消息',
-                'POST /send-daily': '立即发送每日消息',
-                'GET /preview-daily': '预览每日消息内容',
-                'GET /health': '健康检查'
-            },
-            'status': 'running',
-            'deployment': 'Docker',
-            'github': 'https://github.com/DriftingBoats/wework-bot',
-            'docs': 'https://github.com/DriftingBoats/wework-bot/blob/main/README.md'
-        })
-
-    # 添加老黄历API接口
-    @app.route('/api/fortune')
-    def get_fortune():
-        from flask import jsonify
-        try:
-            fortune_data = bot.get_today_fortune_structured()
-            return jsonify({
-                'success': True,
-                'data': fortune_data
-            })
-        except Exception as e:
-            return jsonify({
-                'success': False,
-                'error': f'获取老黄历失败: {str(e)}'
-            }), 500
-    
-    # 添加星座运势API接口
-    @app.route('/api/constellation')
-    def get_constellation():
-        from flask import jsonify, request
-        try:
-            sign = request.args.get('sign')
-            if not sign:
-                return jsonify({
-                    'success': False,
-                    'error': '请提供星座参数'
-                }), 400
-            
-            constellation_data = bot.get_constellation_fortune_structured(sign)
-            return jsonify({
-                'success': True,
-                'data': constellation_data
-            })
-        except Exception as e:
-            return jsonify({
-                'success': False,
-                'error': f'获取星座运势失败: {str(e)}'
-            }), 500
 
 # 导出应用供部署使用
 # WSGI应用入口点

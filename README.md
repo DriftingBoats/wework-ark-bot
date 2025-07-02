@@ -157,7 +157,7 @@ chmod +x deploy.sh
 
 # 验证部署
 ./deploy.sh status
-curl http://localhost:5000/health
+curl http://localhost:5000/api/health/
 ```
 
 **4. 设置定时任务**
@@ -167,7 +167,7 @@ curl http://localhost:5000/health
 
 # 或手动编辑 crontab
 crontab -e
-# 添加：0 10 * * 1-5 curl -X POST http://localhost:5000/send-daily
+# 添加：0 10 * * 1-5 curl -X POST http://localhost:5000/api/message/send-daily
 ```
 
 **5. 设置开机自启动（可选）**
@@ -424,7 +424,7 @@ GET /api/constellation?sign=leo
 crontab -e
 
 # 添加定时任务（每天上午10:00发送）
-0 10 * * 1-5 curl -X POST http://localhost:5000/send-daily
+0 10 * * 1-5 curl -X POST http://localhost:5000/api/message/send-daily
 
 # 或使用部署脚本安装
 ./deploy.sh install-cron
@@ -481,18 +481,18 @@ crontab -e
 ### API 测试命令
 ```bash
 # 测试每日消息
-curl -X POST http://localhost:5000/send-daily
+curl -X POST http://localhost:5000/api/message/send-daily
 
 # 测试预览消息
-curl -X GET http://localhost:5000/preview-daily
+curl -X GET http://localhost:5000/api/message/preview-daily
 
 # 发送自定义消息
-curl -X POST http://localhost:5000/send \
+curl -X POST http://localhost:5000/api/message/send \
   -H "Content-Type: application/json" \
   -d '{"content": "Hello from WeWork Bot!"}'
 
 # 健康检查
-curl http://localhost:5000/health
+curl http://localhost:5000/api/health/
 
 # 获取老黄历
 curl http://localhost:5000/api/fortune
@@ -541,7 +541,7 @@ sudo netstat -tlnp | grep :5000
    ```
 3. **手动测试 API**：
    ```bash
-   curl -X POST http://localhost:5000/send-daily
+   curl -X POST http://localhost:5000/api/message/send-daily
    ```
 4. **确认服务状态**：
    ```bash
@@ -666,7 +666,7 @@ services:
       - ./logs:/app/logs
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health/"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -5,7 +5,7 @@ import requests
 import json
 
 try:
-    response = requests.get('http://localhost:5000/preview-daily')
+    response = requests.get('http://localhost:5000/api/message/preview-daily')
     if response.status_code == 200:
         data = response.json()
         message = data.get('message', '')
