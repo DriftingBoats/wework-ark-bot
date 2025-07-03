@@ -172,8 +172,9 @@ def send_lunch_message():
     try:
         from wework_bot import bot
         
-        # 获取午餐推荐并发送
-        lunch_recommendation = bot.get_lunch_recommendation()
+        # 获取天气信息和午餐推荐并发送
+        weather_info = bot.get_weather_info()
+        lunch_recommendation = bot.get_lunch_recommendation(weather_info)
         result = bot.send_message(f"🍽️ 午餐推荐\n\n{lunch_recommendation}")
         
         if result:
